@@ -1,0 +1,147 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags billing_tags %}
+
+{% block title %}{{ client.full_name }}{% endblock %}
+{% block heading %}{{ client.full_name }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Clinic" %}
+  {% include "dashboard/partials/crumb.html" with label="Clients" url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label=client.full_name %}
+{% endblock %}
+
+{% block actions %}
+  {% if can_edit %}
+    <a href="{% url 'dashboard:edit' 'clients' 'client' client.pk %}" class="btn btn-sm fw-bold btn-light-primary"><i class="ki-outline ki-pencil fs-3"></i> Edit</a>
+  {% endif %}
+  {% if can_sell and client.is_active %}
+    <a href="{% url 'dashboard:add' 'billing' 'invoice' %}?client={{ client.pk }}" class="btn btn-sm fw-bold btn-light-success"><i class="ki-outline ki-handcart fs-3"></i> New sale</a>
+  {% endif %}
+  {% if can_add_visit and client.is_active %}
+    <a href="{% url 'dashboard:add' 'appointments' 'appointment' %}?client={{ client.pk }}" class="btn btn-sm fw-bold btn-primary"><i class="ki-outline ki-plus fs-3"></i> New visit</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="row g-5 g-xl-8">
+    <div class="col-xl-4">
+      <div class="card mb-5 mb-xl-8">
+        <div class="card-body pt-10">
+          <div class="d-flex flex-center flex-column mb-6">
+            <div class="symbol symbol-90px symbol-circle mb-5">
+              <span class="symbol-label bg-light-primary text-primary fs-2x fw-bold">{{ client.full_name|first|upper }}</span>
+            </div>
+            <div class="fs-3 text-gray-900 fw-bold mb-1">{{ client.full_name }}</div>
+            {% if not client.is_active %}<span class="badge badge-light-danger">Inactive</span>{% endif %}
+          </div>
+          <div class="separator separator-dashed mb-6"></div>
+          <div class="fw-bold text-muted fs-7">Phone</div>
+          <div class="text-gray-800 mb-4"><a href="tel:{{ client.phone_digits }}">{{ client.phone }}</a>{% if client.alt_phone %} · {{ client.alt_phone }}{% endif %}</div>
+          {% if client.email %}<div class="fw-bold text-muted fs-7">Email</div><div class="text-gray-800 mb-4"><a href="mailto:{{ client.email }}">{{ client.email }}</a></div>{% endif %}
+          <div class="fw-bold text-muted fs-7">Address</div>
+          <div class="text-gray-800 mb-4">{% if client.address and client.area %}{{ client.address }}, {{ client.area }}{% else %}{{ client.address|default:client.area|default:"—" }}{% endif %}</div>
+          {% if client.notes %}<div class="fw-bold text-muted fs-7">Notes</div><div class="text-gray-800 message-body mb-4">{{ client.notes }}</div>{% endif %}
+          <div class="text-muted fs-7">Registered {{ client.created_at|date:"j M Y" }}{% if client.created_by %} by {{ client.created_by|staff_name }}{% endif %}</div>
+        </div>
+      </div>
+
+      {% if same_phone %}
+        <div class="alert bg-light-warning border border-warning border-dashed">
+          <div class="fw-bold text-gray-900 mb-2">Other owners with this phone number</div>
+          {% for other in same_phone %}
+            <div><a href="{{ other.get_absolute_url }}">{{ other.full_name }}</a></div>
+          {% endfor %}
+          <div class="text-muted fs-7 mt-2">Families often share a phone. If this is the same person twice, move the pets to one record and mark the other inactive.</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="col-xl-8">
+      <div class="card mb-5 mb-xl-8">
+        <div class="card-header pt-5">
+          <h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">Pets</span></h2>
+        </div>
+        <div class="card-body pt-2">
+          {% if pets %}
+            <div class="table-responsive">
+              <table class="table align-middle table-row-dashed fs-6 gy-4">
+                <thead>
+                  <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                    <th scope="col">Name</th><th scope="col">Species</th><th scope="col">Breed</th><th scope="col">Sex</th><th scope="col">Age</th><th scope="col" class="text-end">Actions</th>
+                  </tr>
+                </thead>
+                <tbody class="fw-semibold text-gray-600">
+                  {% for pet in pets %}
+                    <tr>
+                      <td>
+                        <a href="{{ pet.get_absolute_url }}" class="row-title">{{ pet.name }}</a>
+                        {% if pet.is_deceased %}<span class="badge badge-light-dark ms-2">Deceased</span>{% elif not pet.is_active %}<span class="badge badge-light-danger ms-2">Inactive</span>{% endif %}
+                        {% if pet.alerts %}<i class="ki-outline ki-information-5 text-danger fs-5 ms-1" title="{{ pet.alerts }}"></i>{% endif %}
+                      </td>
+                      <td>{{ pet.species }}</td>
+                      <td>{{ pet.breed|default:"—" }}</td>
+                      <td>{{ pet.get_sex_display }}</td>
+                      <td>{{ pet.age_display|default:"—" }}</td>
+                      <td class="text-end text-nowrap">
+                        <a href="{{ pet.get_absolute_url }}" class="btn btn-sm btn-light">Record</a>
+                        {% if can_add_visit and pet.is_active and not pet.is_deceased %}
+                          <a href="{% url 'dashboard:add' 'appointments' 'appointment' %}?pet={{ pet.pk }}" class="btn btn-sm btn-light-primary">New visit</a>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="text-gray-600 mb-0">No pets yet. Add one from “Edit” or register a visit.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if invoices %}
+        <div class="card mb-5 mb-xl-8">
+          <div class="card-header pt-5"><h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">Bills</span></h2></div>
+          <div class="card-body pt-2">
+            {% include "billing/partials/invoice_table.html" %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if can_view_visits %}
+        <div class="card">
+          <div class="card-header pt-5">
+            <h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">Visits</span></h2>
+          </div>
+          <div class="card-body pt-2">
+            {% if visits %}
+              <div class="table-responsive">
+                <table class="table align-middle table-row-dashed fs-6 gy-4">
+                  <thead>
+                    <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                      <th scope="col">Date</th><th scope="col">No.</th><th scope="col">Pet</th><th scope="col">Reason</th><th scope="col">Attended by</th><th scope="col">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody class="fw-semibold text-gray-600">
+                    {% for visit in visits %}
+                      <tr>
+                        <td class="text-nowrap">{{ visit.visit_date|date:"j M Y" }}</td>
+                        <td><a href="{{ visit.get_absolute_url }}" class="row-title">{{ visit.number }}</a></td>
+                        <td>{{ visit.pet.name }}</td>
+                        <td>{{ visit.reason|truncatechars:50 }}</td>
+                        <td>{{ visit.attended_by|staff_name|default:"—" }}</td>
+                        <td><span class="badge badge-light-{{ visit.status_color }}">{{ visit.get_status_display }}</span></td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <p class="text-gray-600 mb-0">No visits yet.</p>
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

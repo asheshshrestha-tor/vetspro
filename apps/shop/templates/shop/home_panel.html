@@ -1,0 +1,20 @@
+{% load billing_tags %}
+<div class="card card-flush mb-5 mb-xl-8">
+  <div class="card-header pt-7">
+    <h2 class="card-title align-items-start flex-column">
+      <span class="card-label fw-bold text-gray-900 fs-3">Low stock</span>
+      <span class="text-gray-500 mt-1 fw-semibold fs-6">{{ panel.total }} product{{ panel.total|pluralize }} at or below the warning level</span>
+    </h2>
+    <div class="card-toolbar"><a href="{% url 'dashboard:list' 'shop' 'product' %}?track_stock=1" class="btn btn-sm btn-light-primary">All products</a></div>
+  </div>
+  <div class="card-body pt-2">
+    <div class="d-flex flex-wrap gap-3">
+      {% for product in panel.products %}
+        <a href="{% url 'dashboard:product_stock' product.pk %}" class="border border-dashed {% if product.is_out_of_stock %}border-danger{% else %}border-warning{% endif %} rounded px-4 py-3 text-gray-800 text-hover-primary">
+          <div class="fw-bold">{{ product.name }}</div>
+          <div class="fs-7 {% if product.is_out_of_stock %}text-danger{% else %}text-warning{% endif %}">{{ product.stock_quantity|qty }} {{ product.unit }} left</div>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>

@@ -1,0 +1,37 @@
+{% extends "dashboard/base.html" %}
+{% load assets static %}
+
+{% block title %}New sale{% endblock %}
+{% block heading %}New sale{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Billing" %}
+  {% include "dashboard/partials/crumb.html" with label="New sale" %}
+{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-xl-7">
+      <form method="post" novalidate class="card">
+        {% csrf_token %}
+        <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">Who is buying?</h2></div></div>
+        <div class="card-body p-9">
+          <p class="text-gray-600 mb-8">
+            For someone buying food, medicine or accessories at the counter, with or without a visit.
+            To bill a visit, use “Bill” on the visit instead, so the bill is linked to it.
+          </p>
+          {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+          {% for field in form %}{% include "dashboard/partials/field.html" %}{% endfor %}
+        </div>
+        <div class="card-footer d-flex gap-3 py-5">
+          <button type="submit" class="btn btn-primary">Continue to items</button>
+          <a href="{{ module.list_url }}" class="btn btn-light">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% asset 'dashboard/js/forms.js' %}"></script>
+{% endblock %}

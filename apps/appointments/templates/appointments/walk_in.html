@@ -1,0 +1,121 @@
+{% extends "dashboard/base.html" %}
+{% load assets static %}
+
+{% block title %}New walk-in{% endblock %}
+{% block heading %}New walk-in{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Clinic" %}
+  {% url 'dashboard:appointment_queue' as queue_url %}
+  {% include "dashboard/partials/crumb.html" with label="Queue" url=queue_url %}
+  {% include "dashboard/partials/crumb.html" with label="New walk-in" %}
+{% endblock %}
+
+{% block actions %}
+  <a href="{% url 'dashboard:appointment_blank_form' %}" target="_blank" rel="noopener" class="btn btn-sm fw-bold btn-light"><i class="ki-outline ki-printer fs-3"></i> Blank form</a>
+  <a href="{% url 'dashboard:appointment_queue' %}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back to queue</a>
+{% endblock %}
+
+{% block content %}
+  <form method="post" novalidate data-walk-in>
+    {% csrf_token %}
+    {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+
+    <div class="row g-5 g-xl-8">
+      <div class="col-xl-7">
+        <div class="card mb-5 mb-xl-8">
+          <div class="card-header">
+            <div class="card-title"><h2 class="fs-3 fw-bold m-0">1. Owner</h2></div>
+          </div>
+          <div class="card-body p-9">
+            {% include "dashboard/partials/field.html" with field=form.client %}
+
+            <div data-new-client>
+              <div class="separator separator-content my-8"><span class="w-175px text-gray-500 fw-semibold fs-7">or add a new owner</span></div>
+              {% include "dashboard/partials/field.html" with field=form.new_client_name %}
+              {% include "dashboard/partials/field.html" with field=form.new_client_phone %}
+              {% if duplicates %}
+                <div class="alert bg-light-warning border border-warning border-dashed mb-6">
+                  <div class="fw-bold text-gray-900 mb-2">Owners already registered with this phone number:</div>
+                  <ul class="mb-4">
+                    {% for existing in duplicates %}
+                      <li>{{ existing.full_name }} — {{ existing.phone }}{% if existing.area %}, {{ existing.area }}{% endif %}
+                        <a href="?client={{ existing.pk }}" class="ms-2">Use this owner</a></li>
+                    {% endfor %}
+                  </ul>
+                  {% include "dashboard/partials/field.html" with field=form.confirm_new_client %}
+                </div>
+              {% endif %}
+              {% include "dashboard/partials/field.html" with field=form.new_client_alt_phone %}
+              {% include "dashboard/partials/field.html" with field=form.new_client_address %}
+              {% include "dashboard/partials/field.html" with field=form.new_client_area %}
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-5 mb-xl-8">
+          <div class="card-header">
+            <div class="card-title"><h2 class="fs-3 fw-bold m-0">2. Pet</h2></div>
+          </div>
+          <div class="card-body p-9">
+            <div data-existing-pet>
+              {% include "dashboard/partials/field.html" with field=form.pet %}
+              <div class="separator separator-content my-8"><span class="w-175px text-gray-500 fw-semibold fs-7">or add a new pet</span></div>
+            </div>
+            <div data-new-pet>
+              {% include "dashboard/partials/field.html" with field=form.new_pet_name %}
+              {% include "dashboard/partials/field.html" with field=form.new_pet_species %}
+              {% include "dashboard/partials/field.html" with field=form.new_pet_breed %}
+              {% include "dashboard/partials/field.html" with field=form.new_pet_sex %}
+              <div class="row mb-6">
+                <div class="col-lg-3 col-form-label fw-semibold fs-6">Approximate age</div>
+                <div class="col-lg-9">
+                  <div class="d-flex gap-3">
+                    <div class="flex-grow-1">
+                      <label class="form-label fs-7 text-muted" for="{{ form.new_pet_age_years.id_for_label }}">Years</label>
+                      {{ form.new_pet_age_years }}
+                      {% for error in form.new_pet_age_years.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+                    <div class="flex-grow-1">
+                      <label class="form-label fs-7 text-muted" for="{{ form.new_pet_age_months.id_for_label }}">Months</label>
+                      {{ form.new_pet_age_months }}
+                      {% for error in form.new_pet_age_months.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+                    </div>
+                  </div>
+                  <div class="form-text">Leave blank if unknown. The exact date of birth can be added on the pet's record later.</div>
+                </div>
+              </div>
+              {% include "dashboard/partials/field.html" with field=form.new_pet_color %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-5">
+        <div class="card mb-5 mb-xl-8">
+          <div class="card-header">
+            <div class="card-title"><h2 class="fs-3 fw-bold m-0">3. Visit</h2></div>
+          </div>
+          <div class="card-body p-9">
+            {% include "dashboard/partials/field.html" with field=form.reason %}
+            {% include "dashboard/partials/field.html" with field=form.attended_by %}
+            {% include "dashboard/partials/field.html" with field=form.weight_kg %}
+            {% include "dashboard/partials/field.html" with field=form.visit_date %}
+            <div class="form-text mt-n4">Today puts the pet in the queue with a token. A later date books a follow-up.</div>
+          </div>
+          <div class="card-footer d-flex flex-wrap gap-3 py-5">
+            <button type="submit" class="btn btn-primary">Add to queue</button>
+            {% if can_start %}
+              <button type="submit" name="_start" value="1" class="btn btn-light-primary">Add and start consultation</button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% asset 'dashboard/js/forms.js' %}"></script>
+  <script src="{% asset 'appointments/appointments.js' %}"></script>
+{% endblock %}

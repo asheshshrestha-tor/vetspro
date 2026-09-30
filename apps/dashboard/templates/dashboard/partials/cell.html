@@ -1,0 +1,31 @@
+{% if cell.kind == "image" %}
+  {% if cell.value %}
+    <img class="cell-thumb" src="{{ cell.value }}" alt="">
+  {% else %}
+    <span class="cell-thumb cell-thumb--empty"><i class="ki-outline ki-picture fs-2"></i></span>
+  {% endif %}
+{% elif cell.kind == "bool" %}
+  {% if cell.toggle and can_toggle %}
+    <form method="post" action="{% url 'dashboard:toggle' module.app_label module.model_name object.pk cell.name %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+      <button type="submit" class="badge badge-toggle {% if cell.value %}badge-light-success{% else %}badge-light-danger{% endif %}" title="Click to change">
+        {% if cell.value %}Yes{% else %}No{% endif %}
+      </button>
+    </form>
+  {% else %}
+    <span class="badge {% if cell.value %}badge-light-success{% else %}badge-light-danger{% endif %}">{% if cell.value %}Yes{% else %}No{% endif %}</span>
+  {% endif %}
+{% elif cell.kind == "badge" %}
+  <span class="badge badge-light-{{ cell.color }} fs-7">{{ cell.value }}</span>
+{% elif cell.kind == "empty" %}
+  <span class="text-muted">&mdash;</span>
+{% elif cell.kind == "link" %}
+  <a href="{{ cell.value }}" target="_blank" rel="noopener">{{ cell.value }}</a>
+{% elif cell.kind == "email" %}
+  <a href="mailto:{{ cell.value }}">{{ cell.value }}</a>
+{% elif cell.kind == "multiline" %}
+  <div class="message-body">{{ cell.value }}</div>
+{% else %}
+  {{ cell.value }}
+{% endif %}

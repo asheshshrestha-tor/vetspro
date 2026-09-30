@@ -1,0 +1,51 @@
+{% load static %}
+{% with app=request.resolver_match.app_name url=request.resolver_match.url_name %}
+<div class="topbar">
+  <div class="container topbar__inner">
+    <p class="topbar__note">
+      <i class="fa-solid fa-clock" aria-hidden="true"></i>
+      {{ site.opening_hours|default:"Open 24 hours, 7 days a week" }}
+    </p>
+    <ul class="topbar__links">
+      {% if site.phone %}
+        <li><a href="{{ site.phone_href }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> {{ site.phone }}</a></li>
+      {% endif %}
+      {% if site.whatsapp_href %}
+        <li><a href="{{ site.whatsapp_href }}" target="_blank" rel="noopener"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> WhatsApp</a></li>
+      {% endif %}
+      {% include "partials/social_links.html" with list_items=True %}
+    </ul>
+  </div>
+</div>
+
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a class="brand" href="{% url 'core:home' %}">
+      <img src="{% static 'images/bmb.jpg' %}" alt="" width="56" height="56">
+      <span class="brand__text">
+        <strong>BMB Veterinary Hospital</strong>
+        <small>&amp; 24 Hrs Emergency Service</small>
+      </span>
+    </a>
+
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+      <span class="sr-only">Menu</span>
+      <i class="fa-solid fa-bars" aria-hidden="true"></i>
+    </button>
+
+    <nav id="site-nav" class="site-nav" aria-label="Main">
+      <ul>
+        <li><a href="{% url 'core:home' %}" {% if url == "home" %}class="is-active" aria-current="page"{% endif %}>Home</a></li>
+        <li><a href="{% url 'core:about' %}" {% if url == "about" %}class="is-active" aria-current="page"{% endif %}>About</a></li>
+        <li><a href="{% url 'services:list' %}" {% if app == "services" %}class="is-active"{% endif %}>Services</a></li>
+        <li><a href="{% url 'pricing:list' %}" {% if app == "pricing" %}class="is-active"{% endif %}>Pricing</a></li>
+        <li><a href="{% url 'team:list' %}" {% if app == "team" %}class="is-active"{% endif %}>Team</a></li>
+        <li><a href="{% url 'shop:list' %}" {% if app == "shop" %}class="is-active"{% endif %}>Shop</a></li>
+        <li><a href="{% url 'faq:list' %}" {% if app == "faq" %}class="is-active"{% endif %}>FAQ</a></li>
+        <li><a href="{% url 'gallery:list' %}" {% if app == "gallery" %}class="is-active"{% endif %}>Gallery</a></li>
+        <li><a class="btn btn--primary btn--small" href="{% url 'contact:contact' %}">Contact</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+{% endwith %}

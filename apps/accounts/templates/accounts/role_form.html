@@ -1,0 +1,43 @@
+{% extends "dashboard/form.html" %}
+
+{% block form_fields %}
+  {% include "dashboard/partials/field.html" with field=form.name %}
+
+  <div class="separator separator-dashed my-8"></div>
+  <h3 class="fs-5 fw-bold text-gray-900 mb-2">Permissions</h3>
+  <p class="text-gray-600 fw-semibold mb-6">
+    “View” lets the role open a module, “Add” and “Edit” let it make changes, and “Delete” removes records.
+    Superusers can always do everything.
+  </p>
+  {% for error in form.permissions.errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+
+  <div class="table-responsive">
+    <table class="table align-middle table-row-dashed gy-3">
+      <thead>
+        <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+          <th scope="col" class="min-w-150px">Area</th>
+          <th scope="col" class="min-w-175px">Module</th>
+          <th scope="col">Can</th>
+        </tr>
+      </thead>
+      <tbody class="fw-semibold text-gray-700">
+        {% for group in form.permission_groups %}
+          <tr>
+            <td class="text-muted">{{ group.group }}</td>
+            <th scope="row" class="text-gray-900">{{ group.title }}</th>
+            <td>
+              <div class="d-flex flex-wrap gap-5">
+                {% for item in group.boxes %}
+                  <label class="form-check form-check-sm form-check-custom form-check-solid" for="{{ item.box.id_for_label }}">
+                    {{ item.box.tag }}
+                    <span class="form-check-label">{{ item.label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock %}

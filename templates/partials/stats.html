@@ -1,0 +1,12 @@
+{% if stats %}
+  <section class="stats">
+    <div class="container stats__grid">
+      {% for stat in stats %}
+        <div class="stat">
+          <p class="stat__value"><span data-counter="{{ stat.value }}">{{ stat.value }}</span>{{ stat.suffix }}</p>
+          <p class="stat__label">{{ stat.label }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

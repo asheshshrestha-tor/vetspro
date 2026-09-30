@@ -1,0 +1,12 @@
+{% if widget.is_initial %}
+  <div class="image-input-current">
+    <a href="{{ widget.value.url }}" target="_blank" rel="noopener"><img src="{{ widget.value.url }}" alt="Current image"></a>
+    {% if not widget.required %}
+      <label class="form-check form-check-custom form-check-solid" for="{{ widget.checkbox_id }}">
+        <input class="form-check-input" type="checkbox" name="{{ widget.checkbox_name }}" id="{{ widget.checkbox_id }}">
+        <span class="form-check-label fw-semibold text-gray-700">Remove this image</span>
+      </label>
+    {% endif %}
+  </div>
+{% endif %}
+<input type="{{ widget.type }}" name="{{ widget.name }}" accept="image/*"{% include "django/forms/widgets/attrs.html" %}>

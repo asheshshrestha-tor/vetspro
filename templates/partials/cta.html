@@ -1,0 +1,14 @@
+<section class="cta">
+  <div class="container cta__inner reveal">
+    <div>
+      <h2>We are here to help you with your pets</h2>
+      <p>Emergencies do not wait for office hours, and neither do we. Call us any time, day or night.</p>
+    </div>
+    <div class="cta__actions">
+      {% if site.phone_href %}
+        <a class="btn btn--light" href="{{ site.phone_href }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> {{ site.phone }}</a>
+      {% endif %}
+      <a class="btn btn--outline-light" href="{% url 'contact:contact' %}">Contact us</a>
+    </div>
+  </div>
+</section>

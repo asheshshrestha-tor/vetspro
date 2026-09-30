@@ -1,0 +1,22 @@
+{% load billing_tags %}
+<div class="table-responsive">
+  <table class="table align-middle table-row-dashed fs-6 gy-3 mb-0">
+    <thead>
+      <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+        <th scope="col">Invoice</th><th scope="col">Date</th><th scope="col" class="text-end">Total</th><th scope="col" class="text-end">Status</th>
+      </tr>
+    </thead>
+    <tbody class="fw-semibold text-gray-700">
+      {% for invoice in invoices %}
+        <tr>
+          <td><a href="{{ invoice.get_absolute_url }}" class="row-title">{{ invoice.display_number }}</a>{% if invoice.appointment_id %}<div class="text-muted fs-7">Visit bill</div>{% endif %}</td>
+          <td>{{ invoice.invoice_date|date:"j M Y" }}</td>
+          <td class="text-end">{{ invoice.total|rs }}</td>
+          <td class="text-end">
+            <span class="badge badge-light-{% if invoice.payment_label == 'Paid' %}success{% elif invoice.payment_label == 'Cancelled' %}danger{% elif invoice.payment_label == 'Draft' %}secondary{% else %}warning{% endif %}">{{ invoice.payment_label }}</span>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

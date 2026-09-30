@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ service.title }} | {{ site.short_name }}{% endblock %}
+{% block meta_description %}{{ service.summary|default:site.description }}{% endblock %}
+
+{% block content %}
+  {% url 'services:list' as services_url %}
+  {% include "partials/page_header.html" with title=service.title parent_title="Services" parent_url=services_url %}
+
+  <section class="section section--tight-top">
+    <div class="container split">
+      <div class="split__media reveal">
+        {% if service.image %}
+          <img src="{{ service.image.url }}" alt="" loading="lazy">
+        {% else %}
+          <div class="emblem-panel emblem-panel--icon"><i class="fa-solid {{ service.icon }}" aria-hidden="true"></i></div>
+        {% endif %}
+      </div>
+      <div class="split__text reveal">
+        <h2>{{ service.title }}</h2>
+        {% if service.summary %}<p class="lead">{{ service.summary }}</p>{% endif %}
+        {{ service.description|linebreaks }}
+        <a class="btn btn--primary" href="{% url 'contact:contact' %}">Contact us</a>
+      </div>
+    </div>
+  </section>
+
+  {% if faqs %}
+    <section class="section section--soft">
+      <div class="container narrow">
+        <header class="section-head reveal"><h2>FAQ</h2></header>
+        {% for faq in faqs %}
+          {% include "partials/faq_item.html" %}
+        {% endfor %}
+      </div>
+    </section>
+  {% endif %}
+
+  {% if other_services %}
+    <section class="section">
+      <div class="container">
+        <header class="section-head reveal"><h2>Other services</h2></header>
+        <div class="card-grid">
+          {% for service in other_services|slice:":3" %}
+            {% include "partials/service_card.html" %}
+          {% endfor %}
+        </div>
+        <p class="section-foot"><a class="link-back" href="{{ services_url }}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> All services</a></p>
+      </div>
+    </section>
+  {% endif %}
+{% endblock %}

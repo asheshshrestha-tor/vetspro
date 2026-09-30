@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Gallery | {{ site.short_name }}{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="Image Gallery" %}
+
+  <section class="section section--tight-top">
+    <div class="container">
+      <header class="section-head reveal">
+        <h2>Our Clinic</h2>
+        <p>A look inside the hospital and at some of the patients we care for.</p>
+      </header>
+
+      {% if images %}
+        <ul class="gallery" data-gallery>
+          {% for image in images %}
+            <li>
+              <a href="{{ image.image.url }}" data-gallery-item data-title="{{ image.title }}">
+                <img src="{{ image.image.url }}" alt="{{ image.title }}" loading="lazy">
+                <span class="gallery__caption">{{ image.title }}</span>
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="empty-state">Photos of the hospital are coming soon.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <dialog class="lightbox" data-lightbox aria-label="Image viewer">
+    <button type="button" class="lightbox__close" data-lightbox-close aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+    <button type="button" class="lightbox__nav lightbox__nav--prev" data-lightbox-prev aria-label="Previous image"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+    <figure>
+      <img src="" alt="" data-lightbox-image>
+      <figcaption data-lightbox-caption></figcaption>
+    </figure>
+    <button type="button" class="lightbox__nav lightbox__nav--next" data-lightbox-next aria-label="Next image"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+  </dialog>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% load billing_tags %}
+<div class="card mb-5">
+  <div class="card-body d-flex flex-wrap align-items-center gap-4 py-5">
+    <i class="ki-outline ki-bill fs-2x text-success"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold text-gray-900">Bill</div>
+      {% if invoices %}
+        {% for invoice in invoices %}
+          <div class="text-muted">
+            <a href="{{ invoice.get_absolute_url }}">{{ invoice.display_number }}</a> · {{ invoice.total|rs }} ·
+            <span class="{% if invoice.payment_label == 'Paid' %}text-success{% elif invoice.payment_label == 'Cancelled' %}text-danger{% else %}text-warning{% endif %}">{{ invoice.payment_label }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="text-muted">No bill yet. Add the medicines, products and services used in this visit.</div>
+      {% endif %}
+    </div>
+    <form method="post" action="{% url 'dashboard:invoice_for_visit' visit.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-success">{% if invoices %}Open bill{% else %}Create bill{% endif %}</button>
+    </form>
+  </div>
+</div>

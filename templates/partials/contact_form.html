@@ -1,0 +1,23 @@
+<form class="contact-form" method="post" action="{% url 'contact:contact' %}" novalidate>
+  {% csrf_token %}
+  {{ form.non_field_errors }}
+
+  {% for field in form %}
+    {% if field.name == "website" %}
+      <div class="hp-field" aria-hidden="true">
+        <label for="{{ field.id_for_label }}">Leave this field empty</label>
+        {{ field }}
+      </div>
+    {% else %}
+      <div class="field{% if field.errors %} field--error{% endif %}">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% for error in field.errors %}
+          <p class="field__error">{{ error }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endfor %}
+
+  <button class="btn btn--primary" type="submit">Send <i class="fa-solid fa-paper-plane" aria-hidden="true"></i></button>
+</form>

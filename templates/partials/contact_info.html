@@ -1,0 +1,37 @@
+<div class="info-grid">
+  {% if site.phone %}
+    <div class="info-card reveal">
+      <span class="info-card__icon"><i class="fa-solid fa-phone" aria-hidden="true"></i></span>
+      <h3>Call us</h3>
+      <p><a href="{{ site.phone_href }}">{{ site.phone }}</a></p>
+    </div>
+  {% endif %}
+  {% if site.whatsapp_href %}
+    <div class="info-card reveal">
+      <span class="info-card__icon"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></span>
+      <h3>WhatsApp</h3>
+      <p><a href="{{ site.whatsapp_href }}" target="_blank" rel="noopener">{{ site.whatsapp }}</a></p>
+    </div>
+  {% endif %}
+  {% if site.email %}
+    <div class="info-card reveal">
+      <span class="info-card__icon"><i class="fa-solid fa-envelope" aria-hidden="true"></i></span>
+      <h3>Email us</h3>
+      <p><a href="mailto:{{ site.email }}">{{ site.email }}</a></p>
+    </div>
+  {% endif %}
+  {% if site.address %}
+    <div class="info-card reveal">
+      <span class="info-card__icon"><i class="fa-solid fa-location-dot" aria-hidden="true"></i></span>
+      <h3>Our location</h3>
+      <p>{{ site.address }}</p>
+    </div>
+  {% endif %}
+  {% if site.opening_hours %}
+    <div class="info-card reveal">
+      <span class="info-card__icon"><i class="fa-solid fa-clock" aria-hidden="true"></i></span>
+      <h3>Opening hours</h3>
+      <p>{{ site.opening_hours }}</p>
+    </div>
+  {% endif %}
+</div>

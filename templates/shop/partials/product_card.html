@@ -1,0 +1,34 @@
+{% load shop_tags %}
+<article class="p-card">
+  <a class="p-card__media p-card__media--{{ product.category|category_tone }}" href="{{ product.get_absolute_url }}" tabindex="-1" aria-hidden="true">
+    {% if product.image %}
+      <img src="{{ product.image.url }}" alt="" loading="lazy">
+    {% else %}
+      <span class="p-card__icon"><i class="fa-solid {{ product.category|category_icon }}"></i></span>
+    {% endif %}
+    <span class="p-card__badges">
+      {% if product.is_out_of_stock %}
+        <span class="p-badge p-badge--out">Out of stock</span>
+      {% elif product.is_low_stock %}
+        <span class="p-badge p-badge--low">Only {{ product.stock_quantity|floatformat:"-2" }} left</span>
+      {% endif %}
+      {% if product.is_prescription %}<span class="p-badge p-badge--rx">Prescription</span>{% endif %}
+    </span>
+  </a>
+  <div class="p-card__body">
+    <a class="p-card__category" href="{{ product.category.get_absolute_url }}">{{ product.category }}</a>
+    <h3 class="p-card__title"><a href="{{ product.get_absolute_url }}">{{ product.name }}</a></h3>
+    <p class="p-card__meta">{% if product.brand %}{{ product.brand }} · {% endif %}per {{ product.unit }}</p>
+    <div class="p-card__foot">
+      <span class="p-card__price">{{ product.price|price }}</span>
+      {% whatsapp_order site product as order_url %}
+      {% if order_url and not product.is_out_of_stock %}
+        <a class="p-card__cta" href="{{ order_url }}" target="_blank" rel="noopener" aria-label="Order {{ product.name }} on WhatsApp">
+          <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Order
+        </a>
+      {% else %}
+        <a class="p-card__cta p-card__cta--ghost" href="{{ product.get_absolute_url }}" aria-label="View {{ product.name }}">View</a>
+      {% endif %}
+    </div>
+  </div>
+</article>

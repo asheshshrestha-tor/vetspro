@@ -1,0 +1,58 @@
+{% load static %}
+<footer class="site-footer">
+  <div class="container site-footer__grid">
+    <div>
+      <a class="brand brand--footer" href="{% url 'core:home' %}">
+        <img src="{% static 'images/bmb.jpg' %}" alt="" width="64" height="64">
+        <span class="brand__text">
+          <strong>BMB Veterinary Hospital</strong>
+          <small>&amp; 24 Hrs Emergency Service</small>
+        </span>
+      </a>
+      <p>{{ site.description }}</p>
+      <div class="site-footer__social">
+        {% include "partials/social_links.html" %}
+      </div>
+    </div>
+
+    <div>
+      <h2 class="site-footer__title">Explore</h2>
+      <ul class="site-footer__links">
+        <li><a href="{% url 'core:about' %}">About us</a></li>
+        <li><a href="{% url 'services:list' %}">Services</a></li>
+        <li><a href="{% url 'pricing:list' %}">Pricing</a></li>
+        <li><a href="{% url 'shop:list' %}">Pet shop</a></li>
+        <li><a href="{% url 'team:list' %}">Our team</a></li>
+        <li><a href="{% url 'faq:list' %}">FAQ</a></li>
+        <li><a href="{% url 'gallery:list' %}">Gallery</a></li>
+      </ul>
+    </div>
+
+    <div>
+      <h2 class="site-footer__title">Contact</h2>
+      <ul class="site-footer__contact">
+        {% if site.phone %}
+          <li><i class="fa-solid fa-phone" aria-hidden="true"></i> <a href="{{ site.phone_href }}">{{ site.phone }}</a></li>
+        {% endif %}
+        {% if site.whatsapp_href %}
+          <li><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> <a href="{{ site.whatsapp_href }}" target="_blank" rel="noopener">{{ site.whatsapp }}</a></li>
+        {% endif %}
+        {% if site.email %}
+          <li><i class="fa-solid fa-envelope" aria-hidden="true"></i> <a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
+        {% endif %}
+        {% if site.address %}
+          <li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> {{ site.address }}</li>
+        {% endif %}
+        {% if site.opening_hours %}
+          <li><i class="fa-solid fa-clock" aria-hidden="true"></i> {{ site.opening_hours }}</li>
+        {% endif %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="site-footer__bottom">
+    <div class="container">
+      <p>&copy; {% now "Y" %} {{ site.name }}. All rights reserved.</p>
+    </div>
+  </div>
+</footer>

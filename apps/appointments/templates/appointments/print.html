@@ -1,0 +1,154 @@
+{% load static dashboard_tags %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ visit.number }} · {{ pet.name }} | {{ site.short_name }}</title>
+  <style>
+    :root { --navy: #16456b; --orange: #b9591a; --ink: #1f2d3a; --muted: #5c6b78; --line: #d8dee4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eef1f4; color: var(--ink); font: 14px/1.5 "Segoe UI", Roboto, Arial, sans-serif; }
+    .page { max-width: 820px; margin: 24px auto; background: #fff; padding: 36px 40px; box-shadow: 0 6px 24px rgba(0,0,0,.08); }
+    header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid var(--navy); padding-bottom: 16px; margin-bottom: 20px; }
+    header img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+    header h1 { margin: 0; font-size: 20px; color: var(--navy); }
+    header p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+    .doc-title { margin-left: auto; text-align: right; }
+    .doc-title strong { display: block; font-size: 16px; color: var(--orange); }
+    h2 { font-size: 14px; text-transform: uppercase; letter-spacing: .06em; color: var(--navy); margin: 22px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 28px; }
+    .grid div span { color: var(--muted); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 12px; color: var(--muted); text-transform: uppercase; }
+    .flag { color: #b42318; font-weight: 700; }
+    .alert { border: 1px solid #f1b5ae; background: #fdecea; padding: 8px 12px; border-radius: 6px; margin-top: 12px; }
+    .pre { white-space: pre-line; }
+    .muted { color: var(--muted); }
+    footer { margin-top: 32px; display: flex; justify-content: space-between; gap: 24px; font-size: 12px; color: var(--muted); }
+    .signature { border-top: 1px solid var(--ink); min-width: 220px; padding-top: 4px; text-align: center; color: var(--ink); }
+    .toolbar { max-width: 820px; margin: 16px auto 0; display: flex; gap: 8px; justify-content: flex-end; }
+    .toolbar button, .toolbar a { font: inherit; padding: 8px 16px; border-radius: 6px; border: 0; background: var(--navy); color: #fff; cursor: pointer; text-decoration: none; }
+    .toolbar a { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .page { box-shadow: none; margin: 0; max-width: none; padding: 0; }
+      @page { margin: 14mm; }
+    }
+    @media (max-width: 640px) { .page { padding: 20px; } .grid { grid-template-columns: 1fr; } header { flex-wrap: wrap; } .doc-title { margin-left: 0; text-align: left; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="{{ visit.get_absolute_url }}">Back to the visit</a>
+    <button type="button" onclick="window.print()">Print</button>
+  </div>
+
+  <main class="page">
+    <header>
+      <img src="{% static 'images/bmb.jpg' %}" alt="">
+      <div>
+        <h1>{{ site.name }}</h1>
+        <p>{% if site.address %}{{ site.address }} · {% endif %}{{ site.phone }}{% if site.email %} · {{ site.email }}{% endif %}</p>
+      </div>
+      <div class="doc-title">
+        <strong>Visit summary</strong>
+        {{ visit.number }}<br>{{ visit.visit_date|date:"j M Y" }}
+      </div>
+    </header>
+
+    <h2>Patient and owner</h2>
+    <div class="grid">
+      <div><span>Pet:</span> <strong>{{ pet.name }}</strong></div>
+      <div><span>Owner:</span> <strong>{{ client.full_name }}</strong></div>
+      <div><span>Species / breed:</span> {{ pet.species }}{% if pet.breed %} / {{ pet.breed }}{% endif %}</div>
+      <div><span>Phone:</span> {{ client.phone }}</div>
+      <div><span>Sex:</span> {{ pet.get_sex_display }}{% if pet.is_neutered %} (neutered){% endif %}</div>
+      <div><span>Address:</span> {% if client.address and client.area %}{{ client.address }}, {{ client.area }}{% else %}{{ client.address|default:client.area|default:"—" }}{% endif %}</div>
+      <div><span>Age:</span> {{ pet.age_display|default:"—" }}</div>
+      <div><span>Body weight:</span> {% if visit.weight_kg is not None %}{{ visit.weight_kg }} kg{% else %}—{% endif %}</div>
+      {% if pet.color %}<div><span>Colour:</span> {{ pet.color }}</div>{% endif %}
+      {% if pet.microchip_number %}<div><span>Microchip:</span> {{ pet.microchip_number }}</div>{% endif %}
+    </div>
+    {% if pet.alerts %}<div class="alert"><strong>Allergies and alerts:</strong> <span class="pre">{{ pet.alerts }}</span></div>{% endif %}
+
+    <h2>Visit</h2>
+    <div class="grid">
+      <div><span>Reason:</span> {{ visit.reason }}</div>
+      <div><span>Attended by:</span> {{ visit.attended_by|staff_name|default:"—" }}{% if visit.attended_by.staff_profile.designation %}, {{ visit.attended_by.staff_profile.designation }}{% endif %}</div>
+    </div>
+
+    {% if history %}
+      <h2>History</h2>
+      <table>
+        <tbody>
+          {% for entry in history %}<tr><td><strong>{{ entry.option }}</strong></td><td{% if entry.is_abnormal %} class="flag"{% endif %}>{{ entry.value }}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {% if examinations %}
+      <h2>Clinical examination</h2>
+      <table>
+        <thead><tr><th>Examination</th><th>Result</th><th>Normal</th></tr></thead>
+        <tbody>
+          {% for result in examinations %}
+            <tr>
+              <td>{{ result.exam_type.name }}</td>
+              <td{% if result.is_abnormal %} class="flag"{% endif %}>{{ result.value }}{% if result.exam_type.is_number and result.exam_type.unit %} {{ result.exam_type.unit }}{% endif %}{% if result.is_abnormal %} ▲{% endif %}</td>
+              <td class="muted">{{ result.exam_type.range_label }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {% if visit.clinical_notes or visit.diagnosis %}
+      <h2>Findings</h2>
+      {% if visit.clinical_notes %}<p class="pre">{{ visit.clinical_notes }}</p>{% endif %}
+      {% if visit.diagnosis %}<p><strong>Diagnosis:</strong> <span class="pre">{{ visit.diagnosis }}</span></p>{% endif %}
+    {% endif %}
+
+    {% if treatments %}
+      <h2>Treatment</h2>
+      <table>
+        <thead><tr><th>Medicine / procedure</th><th>Dose</th><th>Route</th><th>Frequency</th><th>Duration</th></tr></thead>
+        <tbody>
+          {% for treatment in treatments %}
+            <tr>
+              <td><strong>{{ treatment.name }}</strong><br><span class="muted">{{ treatment.get_kind_display }}{% if treatment.notes %} · {{ treatment.notes }}{% endif %}</span></td>
+              <td>{{ treatment.dose }}</td><td>{{ treatment.route }}</td><td>{{ treatment.frequency }}</td><td>{{ treatment.duration }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {% if vaccinations %}
+      <h2>Vaccination</h2>
+      <table>
+        <thead><tr><th>Vaccine</th><th>Given</th><th>Batch</th><th>Next due</th></tr></thead>
+        <tbody>
+          {% for record in vaccinations %}
+            <tr><td>{{ record.vaccine }}</td><td>{{ record.given_on|date:"j M Y"|default:"—" }}</td><td>{{ record.batch_number|default:"—" }}</td><td>{{ record.next_due_date|date:"j M Y"|default:"—" }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+
+    {% if visit.outcome or visit.result_notes or visit.follow_up_date %}
+      <h2>Result</h2>
+      {% if visit.outcome %}<p><strong>Outcome:</strong> {{ visit.get_outcome_display }}</p>{% endif %}
+      {% if visit.result_notes %}<p class="pre">{{ visit.result_notes }}</p>{% endif %}
+      {% if visit.follow_up_date %}<p><strong>Next visit:</strong> {{ visit.follow_up_date|date:"l, j M Y" }}</p>{% endif %}
+    {% endif %}
+
+    <footer>
+      <div>Printed {{ printed_at|date:"j M Y, H:i" }}. In an emergency call {{ site.phone }}, open 24 hours.</div>
+      <div class="signature">{{ visit.attended_by|staff_name|default:"Veterinarian" }}{% if visit.attended_by.staff_profile.licence_number %}<br><span class="muted">Reg. {{ visit.attended_by.staff_profile.licence_number }}</span>{% endif %}</div>
+    </footer>
+  </main>
+</body>
+</html>

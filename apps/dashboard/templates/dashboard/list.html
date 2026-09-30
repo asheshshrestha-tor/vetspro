@@ -1,0 +1,148 @@
+{% extends "dashboard/base.html" %}
+{% load static %}
+
+{% block title %}{{ module.title }}{% endblock %}
+{% block heading %}{{ module.title }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label=module.group %}
+  {% include "dashboard/partials/crumb.html" with label=module.title %}
+{% endblock %}
+
+{% block actions %}
+  {% if can_add %}
+    <a href="{{ module.add_url }}" class="btn btn-sm fw-bold btn-primary">
+      <i class="ki-outline ki-plus fs-3"></i> Add {{ module.singular }}
+    </a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header border-0 pt-6">
+      <form method="get" class="card-title flex-wrap gap-3 w-100">
+        {% if module.search_fields %}
+          <div class="d-flex align-items-center position-relative my-1">
+            <i class="ki-outline ki-magnifier fs-3 position-absolute ms-5"></i>
+            <input type="search" name="q" value="{{ query }}" class="form-control form-control-solid w-250px ps-13" placeholder="Search {{ module.title|lower }}" aria-label="Search">
+          </div>
+        {% endif %}
+        {% if date_range %}
+          <div class="d-flex flex-wrap align-items-center gap-2 my-1" role="group" aria-label="{{ date_range.label }}">
+            {% for value, label in date_range.presets %}
+              <a href="?period={{ value }}" class="btn btn-sm {% if date_range.preset == value %}btn-primary{% else %}btn-light{% endif %}">{{ label }}</a>
+            {% endfor %}
+            <input type="date" name="date_from" value="{% if not date_range.preset and date_range.start %}{{ date_range.start|date:'Y-m-d' }}{% endif %}" class="form-control form-control-solid w-auto" aria-label="{{ date_range.label }} from">
+            <span class="text-muted">to</span>
+            <input type="date" name="date_to" value="{% if not date_range.preset and date_range.end %}{{ date_range.end|date:'Y-m-d' }}{% endif %}" class="form-control form-control-solid w-auto" aria-label="{{ date_range.label }} to">
+            {% if date_range.preset %}<input type="hidden" name="period" value="{{ date_range.preset }}">{% endif %}
+          </div>
+        {% endif %}
+        {% for filter in filters %}
+          <select name="{{ filter.name }}" class="form-select form-select-solid w-auto my-1" aria-label="{{ filter.label }}" onchange="this.form.submit()">
+            <option value="">{{ filter.label }}: all</option>
+            {% for value, label in filter.choices %}
+              <option value="{{ value }}"{% if value == filter.selected %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        {% endfor %}
+        {% if module.search_fields or filters or date_range %}
+          <button type="submit" class="btn btn-light-primary my-1">Search</button>
+        {% endif %}
+        {% if is_filtered %}
+          <a href="{{ module.list_url }}" class="btn btn-light my-1">Clear</a>
+        {% endif %}
+        <span class="text-muted fs-7 fw-semibold ms-auto my-1">{{ page.paginator.count }} in total</span>
+      </form>
+    </div>
+
+    <div class="card-body pt-0">
+      {% if rows %}
+        <div class="table-responsive">
+          <table class="table align-middle table-row-dashed fs-6 gy-5">
+            <thead>
+              <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                {% for column in columns %}<th scope="col" class="min-w-75px">{{ column }}</th>{% endfor %}
+                <th scope="col" class="text-end min-w-100px">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="fw-semibold text-gray-600">
+              {% for row in rows %}
+                <tr>
+                  {% for cell in row.cells %}
+                    <td class="cell-{{ cell.kind }}">
+                      {% if cell.kind == "title" %}
+                        <a href="{{ row.url }}" class="row-title">{{ cell.value }}</a>
+                      {% else %}
+                        {% include "dashboard/partials/cell.html" with object=row.object %}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                  <td class="text-end text-nowrap">
+                    {% for action in row.actions %}
+                      {% if action.post %}
+                        <form method="post" action="{{ action.url }}" class="d-inline"{% if action.confirm %} onsubmit="return confirm('{{ action.confirm|escapejs }}')"{% endif %}>
+                          {% csrf_token %}
+                          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                          <button type="submit" class="btn btn-sm btn-{{ action.color }} me-1">{% if action.icon %}<i class="ki-outline {{ action.icon }} fs-4"></i>{% endif %}{{ action.label }}</button>
+                        </form>
+                      {% else %}
+                        <a href="{{ action.url }}" class="btn btn-sm btn-{{ action.color }} me-1">{% if action.icon %}<i class="ki-outline {{ action.icon }} fs-4"></i>{% endif %}{{ action.label }}</a>
+                      {% endif %}
+                    {% endfor %}
+                    <a href="{{ row.url }}" class="btn btn-icon btn-bg-light btn-active-color-primary btn-sm me-1" title="{% if can_change %}Edit{% else %}View{% endif %}" aria-label="{% if can_change %}Edit{% else %}View{% endif %} {{ row.object }}">
+                      <i class="ki-outline {% if can_change %}ki-pencil{% else %}ki-eye{% endif %} fs-2"></i>
+                    </a>
+                    {% if can_delete and row.can_delete %}
+                      <a href="{{ row.delete_url }}" class="btn btn-icon btn-bg-light btn-active-color-danger btn-sm" title="Delete" aria-label="Delete {{ row.object }}">
+                        <i class="ki-outline ki-trash fs-2"></i>
+                      </a>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if page.paginator.num_pages > 1 %}
+          <div class="d-flex flex-stack flex-wrap pt-7">
+            <div class="fs-6 fw-semibold text-gray-700">Showing {{ page.start_index }} to {{ page.end_index }} of {{ page.paginator.count }}</div>
+            <ul class="pagination">
+              <li class="page-item previous{% if not page.has_previous %} disabled{% endif %}">
+                <a class="page-link" href="{% if page.has_previous %}?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}{% else %}#{% endif %}" aria-label="Previous"><i class="previous"></i></a>
+              </li>
+              {% for number in page_range %}
+                {% if number == page.paginator.ELLIPSIS %}
+                  <li class="page-item disabled"><span class="page-link">{{ number }}</span></li>
+                {% else %}
+                  <li class="page-item{% if number == page.number %} active{% endif %}">
+                    <a class="page-link" href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ number }}">{{ number }}</a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+              <li class="page-item next{% if not page.has_next %} disabled{% endif %}">
+                <a class="page-link" href="{% if page.has_next %}?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}{% else %}#{% endif %}" aria-label="Next"><i class="next"></i></a>
+              </li>
+            </ul>
+          </div>
+        {% endif %}
+      {% else %}
+        <div class="text-center py-15">
+          <img src="{% static 'dashboard/media/empty.png' %}" class="theme-light-show mw-100 mh-200px mb-7" alt="">
+          <img src="{% static 'dashboard/media/empty-dark.png' %}" class="theme-dark-show mw-100 mh-200px mb-7" alt="">
+          {% if is_filtered %}
+            <h2 class="fs-3 fw-bold text-gray-900 mb-3">Nothing matches your search</h2>
+            <a href="{{ module.list_url }}" class="btn btn-light-primary">Clear search</a>
+          {% else %}
+            <h2 class="fs-3 fw-bold text-gray-900 mb-3">No {{ module.title|lower }} yet</h2>
+            <p class="text-gray-600 fw-semibold fs-6 mb-7">{{ module.description }}</p>
+            {% if can_add %}
+              <a href="{{ module.add_url }}" class="btn btn-primary">Add {{ module.singular }}</a>
+            {% endif %}
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

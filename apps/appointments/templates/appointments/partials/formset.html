@@ -1,0 +1,27 @@
+<div data-inline="{{ formset.prefix }}">
+  {{ formset.management_form }}
+  {% for error in formset.non_form_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+  <div class="table-responsive">
+    <table class="table align-middle table-row-dashed gy-3 inline-table">
+      <thead>
+        <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+          {% for field in formset.empty_form.visible_fields %}
+            {% if field.name != "DELETE" %}<th scope="col">{{ field.label }}</th>{% endif %}
+          {% endfor %}
+          <th scope="col" class="text-end">Remove</th>
+        </tr>
+      </thead>
+      <tbody data-inline-rows>
+        {% for inline_form in formset %}
+          {% include "dashboard/partials/inline_row.html" with form=inline_form %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <template data-inline-template>
+    {% include "dashboard/partials/inline_row.html" with form=formset.empty_form %}
+  </template>
+  <button type="button" class="btn btn-sm btn-light-primary" data-inline-add>
+    <i class="ki-outline ki-plus fs-3"></i> {{ add_label }}
+  </button>
+</div>

@@ -1,0 +1,16 @@
+<article class="team-card reveal">
+  <a class="team-card__photo" href="{{ member.get_absolute_url }}" tabindex="-1" aria-hidden="true">
+    {% if member.photo %}
+      <img src="{{ member.photo.url }}" alt="" loading="lazy">
+    {% else %}
+      <span class="placeholder"><i class="fa-solid fa-user-doctor"></i></span>
+    {% endif %}
+  </a>
+  <div class="team-card__body">
+    <h3><a href="{{ member.get_absolute_url }}">{{ member.name }}</a></h3>
+    <p class="team-card__role">{{ member.role }}</p>
+    {% if member.short_bio %}<p>{{ member.short_bio }}</p>{% endif %}
+    {% include "partials/member_social.html" %}
+    <a class="link-more" href="{{ member.get_absolute_url }}">Read more <span class="sr-only">about {{ member.name }}</span></a>
+  </div>
+</article>

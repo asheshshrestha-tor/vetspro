@@ -1,0 +1,19 @@
+{# Read-only view of recorded values, for people who may see but not change them. #}
+<div class="table-responsive">
+  <table class="table align-middle table-row-dashed gy-3 mb-0">
+    <tbody class="fw-semibold text-gray-700">
+      {% for record in records %}
+        {% with definition=record.definition %}
+          <tr>
+            <th scope="row" class="text-gray-900 min-w-175px">{{ definition.name }}</th>
+            <td>{{ record.value }}{{ definition.unit_suffix }}</td>
+            <td class="text-muted">{{ definition.range_label|default:"" }}</td>
+            <td>{% if record.is_abnormal %}<span class="badge badge-light-danger">Outside normal</span>{% endif %}</td>
+          </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td class="text-muted">Nothing recorded.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

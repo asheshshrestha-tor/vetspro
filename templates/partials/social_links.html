@@ -1,0 +1,9 @@
+{% if site.facebook_url %}
+  {% if list_items %}<li>{% endif %}<a class="social" href="{{ site.facebook_url }}" target="_blank" rel="noopener" aria-label="Facebook"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>{% if list_items %}</li>{% endif %}
+{% endif %}
+{% if site.instagram_url %}
+  {% if list_items %}<li>{% endif %}<a class="social" href="{{ site.instagram_url }}" target="_blank" rel="noopener" aria-label="Instagram"><i class="fa-brands fa-instagram" aria-hidden="true"></i></a>{% if list_items %}</li>{% endif %}
+{% endif %}
+{% if site.tiktok_url %}
+  {% if list_items %}<li>{% endif %}<a class="social" href="{{ site.tiktok_url }}" target="_blank" rel="noopener" aria-label="TikTok"><i class="fa-brands fa-tiktok" aria-hidden="true"></i></a>{% if list_items %}</li>{% endif %}
+{% endif %}

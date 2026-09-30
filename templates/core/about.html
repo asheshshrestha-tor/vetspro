@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}About | {{ site.short_name }}{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="About" %}
+
+  <section class="section section--tight-top">
+    <div class="container split">
+      <div class="split__media reveal">
+        {% if site.about_image %}
+          <img src="{{ site.about_image.url }}" alt="" loading="lazy">
+        {% else %}
+          <div class="emblem-panel"><img src="{% static 'images/bmb.jpg' %}" alt="" loading="lazy"></div>
+        {% endif %}
+      </div>
+      <div class="split__text reveal">
+        <p class="eyebrow eyebrow--dark">Quality &amp; Care</p>
+        <h2>{{ site.about_heading|default:"Our goal: Happy &amp; Healthy Pets" }}</h2>
+        {{ site.about_text|linebreaks }}
+        <a class="btn btn--primary" href="{% url 'contact:contact' %}">Contact us</a>
+      </div>
+    </div>
+  </section>
+
+  {% include "partials/stats.html" %}
+
+  <section class="section">
+    <div class="container split split--top">
+      <div class="split__text reveal">
+        <h2>Here to help you with your pets</h2>
+        <p>{{ site.description }}</p>
+        <a class="btn btn--outline" href="{% url 'team:list' %}">Our team</a>
+      </div>
+      {% if faqs %}
+        <div class="reveal">
+          {% for faq in faqs %}
+            {% include "partials/faq_item.html" %}
+          {% endfor %}
+          <p class="section-foot"><a class="link-more" href="{% url 'faq:list' %}">See all questions</a></p>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if site.philosophy_text %}
+    <section class="section section--soft">
+      <div class="container split">
+        <div class="split__media reveal">
+          {% if site.philosophy_image %}
+            <img src="{{ site.philosophy_image.url }}" alt="" loading="lazy">
+          {% else %}
+            <div class="emblem-panel emblem-panel--icon"><i class="fa-solid fa-hand-holding-heart" aria-hidden="true"></i></div>
+          {% endif %}
+        </div>
+        <div class="split__text reveal">
+          <h2>Our Philosophy</h2>
+          {{ site.philosophy_text|linebreaks }}
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% include "partials/cta.html" %}
+{% endblock %}

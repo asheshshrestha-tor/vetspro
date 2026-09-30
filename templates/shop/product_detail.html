@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% load shop_tags %}
+
+{% block title %}{{ product.name }} | Pet Shop | {{ site.short_name }}{% endblock %}
+{% block meta_description %}{{ product.description|truncatechars:150|default:product.name }}{% endblock %}
+
+{% block content %}
+  {% include "shop/partials/shop_header.html" with heading=product.category.name %}
+
+  <section class="shop">
+    <div class="container">
+      <div class="p-detail">
+        <div class="p-detail__media p-card__media--{{ product.category|category_tone }}">
+          {% if product.image %}
+            <img src="{{ product.image.url }}" alt="{{ product.name }}">
+          {% else %}
+            <span class="p-detail__icon"><i class="fa-solid {{ product.category|category_icon }}" aria-hidden="true"></i></span>
+          {% endif %}
+          {% if product.is_prescription %}<span class="p-badge p-badge--rx p-detail__badge">Prescription</span>{% endif %}
+        </div>
+
+        <div class="p-detail__info">
+          <a class="p-card__category" href="{{ product.category.get_absolute_url }}">{{ product.category }}</a>
+          <h1 class="p-detail__title">{{ product.name }}</h1>
+          {% if product.brand %}<p class="p-detail__brand">by {{ product.brand }}</p>{% endif %}
+
+          <div class="p-detail__price">
+            {{ product.price|price }} <small>per {{ product.unit }}</small>
+          </div>
+
+          <p class="p-stock {% if product.is_out_of_stock %}p-stock--out{% elif product.is_low_stock %}p-stock--low{% endif %}">
+            <i class="fa-solid fa-circle" aria-hidden="true"></i>
+            {% if product.is_out_of_stock %}Out of stock. Call us to check when it is back.
+            {% elif product.is_low_stock %}Only {{ product.stock_quantity|floatformat:"-2" }} left in stock
+            {% else %}In stock at the hospital{% endif %}
+          </p>
+
+          {% if product.is_prescription %}
+            <div class="p-note"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Prescription medicine: sold after one of our vets has examined your pet or advised it.</div>
+          {% endif %}
+
+          {% whatsapp_order site product as order_url %}
+          {% if order_url and not product.is_out_of_stock %}
+            <form class="p-order" data-order data-base="{{ site.whatsapp_href }}" data-name="{{ product.name }}" data-unit="{{ product.unit }}" data-price="{{ product.price|price }}">
+              <div class="qty" role="group" aria-label="Quantity">
+                <button type="button" data-step="-1" aria-label="Fewer">−</button>
+                <input type="number" name="qty" value="1" min="1" max="99" aria-label="Quantity">
+                <button type="button" data-step="1" aria-label="More">+</button>
+              </div>
+              <a class="btn btn--primary p-order__whatsapp" href="{{ order_url }}" target="_blank" rel="noopener" data-order-link>
+                <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> Order on WhatsApp
+              </a>
+            </form>
+          {% endif %}
+          {% if site.phone_href %}
+            <a class="p-call" href="{{ site.phone_href }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> Or call {{ site.phone }} to order</a>
+          {% endif %}
+
+          <ul class="p-perks">
+            <li><i class="fa-solid fa-store" aria-hidden="true"></i> Pick up at the hospital, open 24 hours</li>
+            <li><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Free advice from our vets</li>
+            <li><i class="fa-solid fa-circle-check" aria-hidden="true"></i> We confirm the price and stock when you order</li>
+          </ul>
+        </div>
+      </div>
+
+      {% if product.description %}
+        <div class="p-description">
+          <h2>About this product</h2>
+          {{ product.description|linebreaks }}
+        </div>
+      {% endif %}
+
+      {% if related %}
+        <div class="p-related">
+          <div class="p-related__head">
+            <h2>More in {{ product.category }}</h2>
+            <a href="{{ product.category.get_absolute_url }}">See all <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></a>
+          </div>
+          <div class="p-grid p-grid--4">
+            {% for product in related %}
+              {% include "shop/partials/product_card.html" %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    (function () {
+      var form = document.querySelector("[data-order]");
+      if (!form) return;
+      var input = form.querySelector('input[name="qty"]');
+      var link = form.querySelector("[data-order-link]");
+
+      function update() {
+        var qty = Math.min(Math.max(parseInt(input.value, 10) || 1, 1), 99);
+        input.value = qty;
+        if (!link) return;
+        var text = "Hello, I would like to order: " + qty + " × " + form.dataset.name +
+          " (" + form.dataset.unit + ", " + form.dataset.price + ").";
+        link.href = form.dataset.base + "?text=" + encodeURIComponent(text);
+      }
+
+      form.querySelectorAll("[data-step]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          input.value = (parseInt(input.value, 10) || 1) + parseInt(button.dataset.step, 10);
+          update();
+        });
+      });
+      input.addEventListener("change", update);
+      form.addEventListener("submit", function (event) { event.preventDefault(); });
+      update();
+    })();
+  </script>
+{% endblock %}

@@ -1,0 +1,223 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+
+{% block title %}{{ pet.name }} · medical record{% endblock %}
+{% block heading %}{{ pet.name }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Clinic" %}
+  {% include "dashboard/partials/crumb.html" with label="Pets" url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label=pet.name %}
+{% endblock %}
+
+{% block actions %}
+  <button type="button" class="btn btn-sm fw-bold btn-light no-print" onclick="window.print()"><i class="ki-outline ki-printer fs-3"></i> Print record</button>
+  {% if can_edit %}
+    <a href="{% url 'dashboard:edit' 'clients' 'pet' pet.pk %}" class="btn btn-sm fw-bold btn-light-primary no-print"><i class="ki-outline ki-pencil fs-3"></i> Edit</a>
+  {% endif %}
+  {% if can_add_visit and pet.is_active and not pet.is_deceased %}
+    <a href="{% url 'dashboard:add' 'appointments' 'appointment' %}?pet={{ pet.pk }}" class="btn btn-sm fw-bold btn-primary no-print"><i class="ki-outline ki-plus fs-3"></i> New visit</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if pet.alerts %}
+    <div class="alert bg-light-danger border border-danger border-dashed d-flex align-items-center p-5 mb-5" role="alert">
+      <i class="ki-outline ki-information-5 fs-2hx text-danger me-4"></i>
+      <div><div class="fw-bold text-danger">Allergies and alerts</div><div class="text-gray-800 message-body">{{ pet.alerts }}</div></div>
+    </div>
+  {% endif %}
+
+  <div class="row g-5 g-xl-8 mb-5 mb-xl-8">
+    <div class="col-xl-4">
+      <div class="card h-100">
+        <div class="card-body pt-10">
+          <div class="d-flex flex-center flex-column mb-6">
+            <div class="symbol symbol-100px symbol-circle mb-5">
+              {% if pet.photo %}<img src="{{ pet.photo.url }}" alt="">{% else %}<span class="symbol-label bg-light-primary text-primary fs-2x fw-bold">{{ pet.name|first|upper }}</span>{% endif %}
+            </div>
+            <div class="fs-3 text-gray-900 fw-bold">{{ pet.name }}</div>
+            <div class="text-muted">{{ pet.species }}{% if pet.breed %} · {{ pet.breed }}{% endif %}</div>
+            {% if pet.is_deceased %}<span class="badge badge-light-dark mt-2">Deceased{% if pet.date_of_death %} {{ pet.date_of_death|date:"j M Y" }}{% endif %}</span>{% endif %}
+          </div>
+          <div class="separator separator-dashed mb-6"></div>
+          <dl class="row mb-0 fs-6">
+            <dt class="col-5 text-muted fw-semibold">Sex</dt><dd class="col-7 text-gray-800">{{ pet.get_sex_display }}{% if pet.is_neutered %}, neutered{% endif %}</dd>
+            <dt class="col-5 text-muted fw-semibold">Age</dt><dd class="col-7 text-gray-800">{{ pet.age_display|default:"—" }}{% if pet.date_of_birth %} <span class="text-muted fs-7">({% if pet.dob_is_estimate %}about {% endif %}{{ pet.date_of_birth|date:"M Y" }})</span>{% endif %}</dd>
+            <dt class="col-5 text-muted fw-semibold">Colour</dt><dd class="col-7 text-gray-800">{{ pet.color|default:"—" }}</dd>
+            <dt class="col-5 text-muted fw-semibold">Microchip</dt><dd class="col-7 text-gray-800">{{ pet.microchip_number|default:"—" }}</dd>
+            <dt class="col-5 text-muted fw-semibold">Weight</dt><dd class="col-7 text-gray-800">{% if latest_weight %}{{ latest_weight.kg }} kg <span class="text-muted fs-7">({{ latest_weight.label }})</span>{% else %}—{% endif %}</dd>
+            <dt class="col-5 text-muted fw-semibold">Owner</dt><dd class="col-7"><a href="{{ client.get_absolute_url }}">{{ client.full_name }}</a><br><a href="tel:{{ client.phone_digits }}" class="text-muted fs-7">{{ client.phone }}</a></dd>
+          </dl>
+          {% if pet.notes %}<div class="text-gray-700 message-body mt-4">{{ pet.notes }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-xl-8">
+      <div class="card h-100">
+        <div class="card-header pt-5">
+          <h2 class="card-title align-items-start flex-column">
+            <span class="card-label fw-bold text-gray-900 fs-3">Weight</span>
+            <span class="text-gray-500 mt-1 fw-semibold fs-6">Recorded at each visit</span>
+          </h2>
+        </div>
+        <div class="card-body pt-2">
+          {% if weights|length > 1 %}
+            <div id="weight_chart" style="height: 260px" role="img" aria-label="{{ pet.name }}'s weight over time"></div>
+          {% elif weights %}
+            <p class="text-gray-600 mb-0">Only one weight recorded so far: {{ weights.0.kg }} kg on {{ weights.0.label }}.</p>
+          {% else %}
+            <p class="text-gray-600 mb-0">No weight recorded yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if can_view_visits %}
+    <div class="card mb-5 mb-xl-8">
+      <div class="card-header pt-5">
+        <h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">Vaccination card</span></h2>
+      </div>
+      <div class="card-body pt-2">
+        {% if vaccination_card %}
+          <div class="table-responsive">
+            <table class="table align-middle table-row-dashed fs-6 gy-4">
+              <thead>
+                <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                  <th scope="col">Vaccine</th><th scope="col">Last given</th><th scope="col">Doses</th><th scope="col">Next due</th>
+                </tr>
+              </thead>
+              <tbody class="fw-semibold text-gray-700">
+                {% for entry in vaccination_card %}
+                  <tr>
+                    <td class="text-gray-900">{{ entry.latest.vaccine }}</td>
+                    <td>{% if entry.latest.given_on %}{{ entry.latest.given_on|date:"j M Y" }}{% else %}{{ entry.latest.appointment.visit_date|date:"j M Y" }}{% endif %}</td>
+                    <td>{{ entry.doses }}</td>
+                    <td>
+                      {% if entry.latest.next_due_date %}
+                        {{ entry.latest.next_due_date|date:"j M Y" }}
+                        {% if entry.overdue %}<span class="badge badge-light-danger ms-2">Overdue</span>{% endif %}
+                      {% else %}—{% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-gray-600 mb-0">No vaccinations recorded.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if tracking %}
+      {% with exams=tracking.exams history=tracking.history %}
+        {% if exams.rows or history.rows %}
+          <div class="card mb-5 mb-xl-8">
+            <div class="card-header card-header-stretch">
+              <h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">Clinical history</span></h2>
+              <div class="card-toolbar">
+                <ul class="nav nav-stretch nav-line-tabs border-transparent fs-6 fw-bold" role="tablist">
+                  {% if exams.rows %}<li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary active" data-bs-toggle="tab" data-bs-target="#track-exams" role="tab">Examination</button></li>{% endif %}
+                  {% if history.rows %}<li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary{% if not exams.rows %} active{% endif %}" data-bs-toggle="tab" data-bs-target="#track-history" role="tab">History</button></li>{% endif %}
+                </ul>
+              </div>
+            </div>
+            <div class="card-body pt-4">
+              <div class="tab-content">
+                {% if exams.rows %}
+                  <div class="tab-pane fade show active" id="track-exams" role="tabpanel">
+                    {% include "clients/partials/tracking_table.html" with table=exams %}
+                  </div>
+                {% endif %}
+                {% if history.rows %}
+                  <div class="tab-pane fade{% if not exams.rows %} show active{% endif %}" id="track-history" role="tabpanel">
+                    {% include "clients/partials/tracking_table.html" with table=history %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endif %}
+      {% endwith %}
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header pt-5">
+        <h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">Visits</span></h2>
+      </div>
+      <div class="card-body pt-4">
+        {% for visit in visits %}
+          <div class="border border-dashed border-gray-300 rounded p-5 mb-4">
+            <div class="d-flex flex-wrap align-items-center gap-3 mb-2">
+              <a href="{{ visit.get_absolute_url }}" class="fw-bold fs-5 text-gray-900 text-hover-primary">{{ visit.visit_date|date:"j M Y" }} · {{ visit.number }}</a>
+              <span class="badge badge-light-{{ visit.status_color }}">{{ visit.get_status_display }}</span>
+              <span class="text-muted ms-auto fs-7">{{ visit.attended_by|staff_name }}</span>
+            </div>
+            <div class="text-gray-700"><span class="text-muted">Reason:</span> {{ visit.reason }}{% if visit.weight_kg is not None %} · <span class="text-muted">Weight:</span> {{ visit.weight_kg }} kg{% endif %}</div>
+            {% if can_view_clinical %}
+              {% if visit.diagnosis %}<div class="text-gray-800 mt-2"><span class="text-muted">Diagnosis:</span> <span class="message-body">{{ visit.diagnosis }}</span></div>{% endif %}
+              {% with abnormal=visit.examinations.all %}
+                {% for result in abnormal %}{% if result.is_abnormal %}<span class="badge badge-light-danger me-1 mt-2">{{ result }}</span>{% endif %}{% endfor %}
+              {% endwith %}
+              {% if visit.treatments.all %}
+                <div class="text-gray-700 mt-2"><span class="text-muted">Treatment:</span>
+                  {% for treatment in visit.treatments.all %}{{ treatment.name }}{% if treatment.dose %} {{ treatment.dose }}{% endif %}{% if not forloop.last %}; {% endif %}{% endfor %}
+                </div>
+              {% endif %}
+            {% endif %}
+            {% if visit.vaccinations.all %}
+              <div class="text-gray-700 mt-2"><span class="text-muted">Vaccinated:</span> {% for record in visit.vaccinations.all %}{{ record.vaccine }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+            {% endif %}
+          </div>
+        {% empty %}
+          <p class="text-gray-600 mb-0">No visits yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if weights|length > 1 %}
+    {{ weights|json_script:"weight-data" }}
+    <script>
+      (function () {
+        var element = document.getElementById("weight_chart");
+        if (!element || typeof ApexCharts === "undefined") return;
+        var points = JSON.parse(document.getElementById("weight-data").textContent);
+        var chart = null;
+
+        function cssVar(name) {
+          return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        function render() {
+          if (chart) chart.destroy();
+          var label = cssVar("--bs-gray-500");
+          chart = new ApexCharts(element, {
+            series: [{ name: "Weight (kg)", data: points.map(function (p) { return p.kg; }) }],
+            chart: { type: "line", height: 260, fontFamily: "inherit", toolbar: { show: false }, animations: { enabled: false } },
+            colors: [cssVar("--bs-primary")],
+            stroke: { width: 3, curve: "straight" },
+            markers: { size: 5 },
+            dataLabels: { enabled: false },
+            xaxis: {
+              categories: points.map(function (p) { return p.label; }),
+              labels: { style: { colors: label, fontSize: "12px" } },
+              axisBorder: { show: false }, axisTicks: { show: false }
+            },
+            yaxis: { labels: { style: { colors: label, fontSize: "12px" }, formatter: function (v) { return v.toFixed(1) + " kg"; } } },
+            grid: { borderColor: cssVar("--bs-gray-200"), strokeDashArray: 4 }
+          });
+          chart.render();
+        }
+
+        render();
+        if (typeof KTThemeMode !== "undefined") KTThemeMode.on("kt.thememode.change", render);
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

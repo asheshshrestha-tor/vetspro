@@ -1,0 +1,81 @@
+{% load dashboard_tags %}
+<div class="row g-5 g-xl-8 mb-5 mb-xl-8">
+  <div class="col-xl-4">
+    <div class="card card-flush h-100">
+      <div class="card-header pt-7">
+        <h2 class="card-title align-items-start flex-column">
+          <span class="card-label fw-bold text-gray-900 fs-3">Today</span>
+          <span class="text-gray-500 mt-1 fw-semibold fs-6">{{ panel.today|date:"l, j M Y" }}</span>
+        </h2>
+      </div>
+      <div class="card-body pt-4">
+        <div class="fs-2hx fw-bold text-gray-900 lh-1 mb-1">{{ panel.total }}</div>
+        <div class="fw-semibold text-gray-600 mb-6">visit{{ panel.total|pluralize }} registered</div>
+        {% for item in panel.counts %}
+          <div class="d-flex align-items-center mb-3">
+            <span class="bullet bullet-dot bg-{{ item.color }} me-3 h-10px w-10px"></span>
+            <span class="fw-semibold text-gray-700 flex-grow-1">{{ item.label }}</span>
+            <span class="fw-bold text-gray-900">{{ item.count }}</span>
+          </div>
+        {% endfor %}
+        <div class="d-flex flex-wrap gap-3 mt-6">
+          <a href="{% url 'dashboard:appointment_queue' %}" class="btn btn-sm btn-light-primary">Open queue</a>
+          {% if panel.can_add %}<a href="{% url 'dashboard:add' 'appointments' 'appointment' %}" class="btn btn-sm btn-primary">New walk-in</a>{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card card-flush h-100">
+      <div class="card-header pt-7">
+        <h2 class="card-title align-items-start flex-column">
+          <span class="card-label fw-bold text-gray-900 fs-3">Follow-ups due</span>
+          <span class="text-gray-500 mt-1 fw-semibold fs-6">Today and missed</span>
+        </h2>
+      </div>
+      <div class="card-body pt-4">
+        {% for visit in panel.follow_ups %}
+          <a href="{{ visit.get_absolute_url }}" class="d-flex align-items-center mb-5 text-gray-800 text-hover-primary">
+            <div class="flex-grow-1">
+              <div class="fw-bold">{{ visit.pet.name }} <span class="text-muted fw-semibold">· {{ visit.client.full_name }}</span></div>
+              <div class="text-muted fs-7">{{ visit.client.phone }}</div>
+            </div>
+            {% if visit.visit_date < panel.today %}
+              <span class="badge badge-light-danger">Missed {{ visit.visit_date|date:"j M" }}</span>
+            {% else %}
+              <span class="badge badge-light-info">Today</span>
+            {% endif %}
+          </a>
+        {% empty %}
+          <p class="text-gray-600 fw-semibold mb-0">No follow-ups due.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-4">
+    <div class="card card-flush h-100">
+      <div class="card-header pt-7">
+        <h2 class="card-title align-items-start flex-column">
+          <span class="card-label fw-bold text-gray-900 fs-3">Vaccinations due</span>
+          <span class="text-gray-500 mt-1 fw-semibold fs-6">Next 14 days, for reminder calls</span>
+        </h2>
+      </div>
+      <div class="card-body pt-4">
+        {% for record in panel.vaccinations %}
+          <div class="d-flex align-items-center mb-5">
+            <div class="flex-grow-1">
+              <a href="{{ record.appointment.pet.get_absolute_url }}" class="fw-bold text-gray-800 text-hover-primary">{{ record.appointment.pet.name }}</a>
+              <span class="text-muted fw-semibold">· {{ record.vaccine }}</span>
+              <div class="fs-7"><span class="text-gray-700">{{ record.appointment.client.full_name }}</span> · <a href="tel:{{ record.appointment.client.phone_digits }}">{{ record.appointment.client.phone }}</a></div>
+            </div>
+            <span class="badge badge-light-warning">{{ record.next_due_date|date:"j M" }}</span>
+          </div>
+        {% empty %}
+          <p class="text-gray-600 fw-semibold mb-0">No vaccinations due in the next 14 days.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load shop_tags %}
+
+{% block title %}{% if category %}{{ category.name }} | {% endif %}Pet Shop | {{ site.short_name }}{% endblock %}
+{% block meta_description %}Pet medicines, food, toys, cages and accessories from {{ site.name }}. Order by phone or WhatsApp.{% endblock %}
+
+{% block content %}
+  {% if category %}
+    {% include "shop/partials/shop_header.html" with heading=category.name subheading=category.description %}
+  {% else %}
+    {% include "shop/partials/shop_header.html" with heading="Pet Shop" subheading="Medicines, food, toys and accessories. Order on WhatsApp and pick up at the hospital, any time." %}
+  {% endif %}
+
+  <section class="shop">
+    <div class="container shop__layout">
+      <aside class="shop-sidebar" aria-label="Shop filters">
+        <div class="shop-panel">
+          <h2 class="shop-panel__title">Categories</h2>
+          <ul class="shop-cats">
+            <li>
+              <a href="{% url 'shop:list' %}{% query_with q=query %}" class="{% if not category %}is-active{% endif %}">
+                <span><i class="fa-solid fa-store" aria-hidden="true"></i> All products</span><span class="count">{{ all_count }}</span>
+              </a>
+            </li>
+            {% for item in categories %}
+              <li>
+                <a href="{{ item.get_absolute_url }}{% query_with q=query %}" class="{% if category == item %}is-active{% endif %}">
+                  <span><i class="fa-solid {{ item|category_icon }}" aria-hidden="true"></i> {{ item.name }}</span><span class="count">{{ item.count }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="shop-panel shop-panel--help">
+          <i class="fa-solid fa-headset" aria-hidden="true"></i>
+          <h2 class="shop-panel__title">Not sure what to buy?</h2>
+          <p>Our vets can advise on the right food or medicine for your pet.</p>
+          {% if site.phone_href %}<a href="{{ site.phone_href }}" class="btn btn--primary btn--small">Call {{ site.phone }}</a>{% endif %}
+        </div>
+      </aside>
+
+      <div class="shop__main">
+        <div class="shop-toolbar">
+          <p class="shop-toolbar__count">
+            <strong>{{ paginator.count }}</strong> product{{ paginator.count|pluralize }}
+            {% if query %}for “<strong>{{ query }}</strong>” <a href="{% if category %}{{ category.get_absolute_url }}{% else %}{% url 'shop:list' %}{% endif %}">Clear</a>{% endif %}
+          </p>
+          <form method="get" class="shop-toolbar__controls">
+            {% if query %}<input type="hidden" name="q" value="{{ query }}">{% endif %}
+            <label class="shop-check">
+              <input type="checkbox" name="stock" value="1"{% if in_stock_only %} checked{% endif %} onchange="this.form.submit()">
+              In stock only
+            </label>
+            <label class="sr-only" for="shop-sort">Sort by</label>
+            <select id="shop-sort" name="sort" onchange="this.form.submit()">
+              {% for key, label in sorts %}<option value="{{ key }}"{% if key == sort %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            <noscript><button type="submit" class="btn btn--outline btn--small">Apply</button></noscript>
+          </form>
+        </div>
+
+        {% if products %}
+          <div class="p-grid">
+            {% for product in products %}
+              {% include "shop/partials/product_card.html" %}
+            {% endfor %}
+          </div>
+
+          {% if is_paginated %}
+            <nav class="shop-pager" aria-label="Pages">
+              {% if page_obj.has_previous %}
+                <a href="{% query_with page=page_obj.previous_page_number %}" aria-label="Previous page"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></a>
+              {% endif %}
+              {% for number in paginator.page_range %}
+                {% if number == page_obj.number %}
+                  <span class="is-active" aria-current="page">{{ number }}</span>
+                {% else %}
+                  <a href="{% query_with page=number %}">{{ number }}</a>
+                {% endif %}
+              {% endfor %}
+              {% if page_obj.has_next %}
+                <a href="{% query_with page=page_obj.next_page_number %}" aria-label="Next page"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></a>
+              {% endif %}
+            </nav>
+          {% endif %}
+        {% else %}
+          <div class="shop-empty">
+            <i class="fa-solid fa-box-open" aria-hidden="true"></i>
+            <h2>{% if query %}Nothing matches “{{ query }}”{% else %}No products here yet{% endif %}</h2>
+            <p>Call us and we will check what we have for you.</p>
+            <a href="{% url 'shop:list' %}" class="btn btn--outline btn--small">See all products</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

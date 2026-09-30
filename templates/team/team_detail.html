@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}{{ member.name }} | {{ site.short_name }}{% endblock %}
+{% block meta_description %}{{ member.short_bio|default:site.description }}{% endblock %}
+
+{% block content %}
+  {% url 'team:list' as team_url %}
+  {% include "partials/page_header.html" with title=member.name parent_title="Team" parent_url=team_url %}
+
+  <section class="section section--tight-top">
+    <div class="container split">
+      <div class="split__text reveal">
+        <h2>{{ member.name }}</h2>
+        <p class="team-card__role">{{ member.role }}{% if member.qualification %} &middot; {{ member.qualification }}{% endif %}</p>
+        {% include "partials/member_social.html" %}
+        {{ member.bio|default:member.short_bio|linebreaks }}
+      </div>
+      <div class="split__media reveal">
+        {% if member.photo %}
+          <img src="{{ member.photo.url }}" alt="{{ member.name }}" loading="lazy">
+        {% else %}
+          <div class="emblem-panel emblem-panel--icon"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i></div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if member.experiences.all %}
+    <section class="section section--soft">
+      <div class="container narrow">
+        <header class="section-head reveal"><h2>My experience</h2></header>
+        <ul class="paw-list">
+          {% for item in member.experiences.all %}
+            <li class="reveal">
+              <i class="fa-solid fa-paw" aria-hidden="true"></i>
+              <div>
+                {% if item.title %}<h3>{{ item.title }}</h3>{% endif %}
+                {{ item.description|linebreaks }}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="section">
+    <div class="container">
+      <a class="link-back" href="{{ team_url }}"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i> Other team members</a>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "dashboard/base.html" %}
+{% load assets static %}
+
+{% block title %}{% if object %}{{ object }}{% else %}Add {{ module.singular }}{% endif %}{% endblock %}
+{% block heading %}{% if module.singleton %}{{ module.title }}{% elif object %}Edit {{ module.singular }}{% else %}Add {{ module.singular }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label=module.group %}
+  {% if module.singleton %}
+    {% include "dashboard/partials/crumb.html" with label=module.title %}
+  {% else %}
+    {% include "dashboard/partials/crumb.html" with label=module.title url=module.list_url %}
+    {% if object %}
+      {% include "dashboard/partials/crumb.html" with label=object %}
+    {% else %}
+      {% include "dashboard/partials/crumb.html" with label="Add" %}
+    {% endif %}
+  {% endif %}
+{% endblock %}
+
+{% block actions %}
+  {% if not module.singleton %}
+    <a href="{{ module.list_url }}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back to list</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+
+    <div class="card mb-5 mb-xl-10">
+      <div class="card-header">
+        <div class="card-title m-0">
+          <h2 class="fw-bold m-0 fs-3">{% if object %}{{ object }}{% else %}New {{ module.singular }}{% endif %}</h2>
+        </div>
+      </div>
+      <div class="card-body p-9">
+        {% if module.description %}<p class="text-gray-600 fw-semibold mb-8">{{ module.description }}</p>{% endif %}
+        {% for error in form.non_field_errors %}
+          <div class="alert alert-danger">{{ error }}</div>
+        {% endfor %}
+        {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+        {% block form_fields %}
+          {% for field in form.visible_fields %}
+            {% include "dashboard/partials/field.html" %}
+          {% endfor %}
+        {% endblock %}
+      </div>
+    </div>
+
+    {% for formset in formsets %}
+      <div class="card mb-5 mb-xl-10" data-inline="{{ formset.prefix }}">
+        <div class="card-header">
+          <div class="card-title m-0"><h2 class="fw-bold m-0 fs-3">{{ formset.title }}</h2></div>
+          <div class="card-toolbar">
+            <button type="button" class="btn btn-sm btn-light-primary" data-inline-add>
+              <i class="ki-outline ki-plus fs-3"></i> Add row
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-9">
+          {{ formset.management_form }}
+          {% for error in formset.non_form_errors %}
+            <div class="alert alert-danger">{{ error }}</div>
+          {% endfor %}
+          <div class="table-responsive">
+            <table class="table align-middle table-row-dashed gy-4 inline-table">
+              <thead>
+                <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                  {% for field in formset.empty_form.visible_fields %}
+                    {% if field.name != "DELETE" %}<th scope="col">{{ field.label }}</th>{% endif %}
+                  {% endfor %}
+                  <th scope="col" class="text-end">Remove</th>
+                </tr>
+              </thead>
+              <tbody data-inline-rows>
+                {% for inline_form in formset %}
+                  {% include "dashboard/partials/inline_row.html" with form=inline_form %}
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <template data-inline-template>
+            {% include "dashboard/partials/inline_row.html" with form=formset.empty_form %}
+          </template>
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="card form-actions">
+      <div class="card-body d-flex flex-wrap gap-3 py-5">
+        <button type="submit" class="btn btn-primary">Save</button>
+        {% if not module.singleton %}
+          <button type="submit" name="_continue" value="1" class="btn btn-light-primary">Save and keep editing</button>
+          {% if can_add %}
+            <button type="submit" name="_addanother" value="1" class="btn btn-light-primary">Save and add another</button>
+          {% endif %}
+          <a href="{{ module.list_url }}" class="btn btn-light">Cancel</a>
+        {% endif %}
+        {% if object and can_delete %}
+          <a href="{% url 'dashboard:delete' module.app_label module.model_name object.pk %}" class="btn btn-light-danger ms-auto">
+            <i class="ki-outline ki-trash fs-3"></i> Delete
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% asset 'dashboard/js/forms.js' %}"></script>
+{% endblock %}

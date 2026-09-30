@@ -1,0 +1,13 @@
+{% if member.facebook_url or member.instagram_url or member.whatsapp %}
+  <div class="member-social">
+    {% if member.facebook_url %}
+      <a class="social" href="{{ member.facebook_url }}" target="_blank" rel="noopener" aria-label="{{ member.name }} on Facebook"><i class="fa-brands fa-facebook-f" aria-hidden="true"></i></a>
+    {% endif %}
+    {% if member.instagram_url %}
+      <a class="social" href="{{ member.instagram_url }}" target="_blank" rel="noopener" aria-label="{{ member.name }} on Instagram"><i class="fa-brands fa-instagram" aria-hidden="true"></i></a>
+    {% endif %}
+    {% if member.whatsapp %}
+      <a class="social" href="https://wa.me/{{ member.whatsapp|cut:'+'|cut:' '|cut:'-' }}" target="_blank" rel="noopener" aria-label="{{ member.name }} on WhatsApp"><i class="fa-brands fa-whatsapp" aria-hidden="true"></i></a>
+    {% endif %}
+  </div>
+{% endif %}

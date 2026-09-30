@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing | {{ site.short_name }}{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="Prices" %}
+
+  <section class="section section--tight-top">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow eyebrow--dark">Service fees list</p>
+        <h2>Clear, honest pricing</h2>
+        <p>Fees depend on your pet's condition and the care required. Please call us for an estimate before your visit.</p>
+      </header>
+
+      {% for category in categories %}
+        <div class="split split--top price-block{% if forloop.counter|divisibleby:2 %} split--reverse{% endif %}">
+          <div class="reveal">
+            <h3 class="price-block__title">{{ category.name }}</h3>
+            {% if category.description %}<p>{{ category.description }}</p>{% endif %}
+            <ul class="price-list">
+              {% for item in category.items.all %}
+                <li>
+                  <div>
+                    <strong>{{ item.name }}</strong>
+                    {% if item.description %}<span>{{ item.description }}</span>{% endif %}
+                  </div>
+                  <span class="price-list__price">
+                    {% if item.price is not None %}
+                      {% if item.is_starting_price %}<small>from</small> {% endif %}Rs. {{ item.price|floatformat:"-2g" }}
+                    {% else %}
+                      On request
+                    {% endif %}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+          <div class="split__media reveal">
+            {% if category.image %}
+              <img src="{{ category.image.url }}" alt="" loading="lazy">
+            {% else %}
+              <div class="emblem-panel emblem-panel--icon"><i class="fa-solid fa-paw" aria-hidden="true"></i></div>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <p class="empty-state">Our price list will be published here soon. Please call us for an estimate.</p>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% include "partials/cta.html" %}
+{% endblock %}

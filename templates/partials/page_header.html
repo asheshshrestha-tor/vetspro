@@ -1,0 +1,18 @@
+<section class="page-header">
+  <div class="container">
+    <h1>{{ title }}</h1>
+    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'core:home' %}">Home</a>
+      {% if parent_title %}
+        <span aria-hidden="true">/</span>
+        <a href="{{ parent_url }}">{{ parent_title }}</a>
+      {% endif %}
+      <span aria-hidden="true">/</span>
+      <span aria-current="page">{{ title }}</span>
+    </nav>
+  </div>
+  <svg class="curve" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0,80 C360,0 1080,0 1440,80 L1440,80 L0,80 Z"></path>
+  </svg>
+</section>
+{% include "partials/paw_divider.html" %}

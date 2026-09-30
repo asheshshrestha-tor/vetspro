@@ -1,0 +1,22 @@
+{% load billing_tags %}
+<tr data-inline-row data-invoice-line>
+  <td>
+    {{ form.product }}
+    <div class="mt-2">{{ form.description }}</div>
+    {% for error in form.description.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    <div class="text-muted fs-8 mt-1" data-stock-hint>{% if form.instance.product and form.instance.product.track_stock %}{{ form.instance.product.stock_quantity|qty }} {{ form.instance.product.unit }} in stock{% endif %}</div>
+    {% for error in form.product.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+  </td>
+  <td>{{ form.quantity }}{% for error in form.quantity.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
+  <td>{{ form.unit_price }}{% for error in form.unit_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
+  <td class="text-end fw-bold text-gray-800" data-line-total></td>
+  <td class="text-end">
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="invalid-feedback d-block text-start">{{ error }}</div>{% endfor %}
+    <label class="btn btn-icon btn-bg-light btn-active-color-danger btn-sm" title="Remove this item">
+      <span class="d-none">{{ form.DELETE }}</span>
+      <i class="ki-outline ki-trash fs-2"></i>
+      <span class="visually-hidden">Remove this item</span>
+    </label>
+  </td>
+</tr>

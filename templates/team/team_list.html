@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Our Team | {{ site.short_name }}{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="Our Team" %}
+
+  <section class="section section--tight-top">
+    <div class="container">
+      <header class="section-head reveal">
+        <h2>Meet the team</h2>
+        <p>A skilled medical team offering compassionate support, day or night.</p>
+      </header>
+
+      {% if team %}
+        <div class="card-grid">
+          {% for member in team %}
+            {% include "partials/team_card.html" %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-state">Team profiles are coming soon.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% include "partials/cta.html" %}
+{% endblock %}

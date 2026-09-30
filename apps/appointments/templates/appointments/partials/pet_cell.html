@@ -1,0 +1,8 @@
+{% load dashboard_tags %}
+<div class="d-flex flex-column">
+  <a href="{{ visit.get_absolute_url }}" class="row-title">
+    {{ visit.pet.name }}
+    {% if visit.pet.alerts %}<i class="ki-outline ki-information-5 text-danger fs-5 ms-1" title="Allergies / alerts: {{ visit.pet.alerts }}"></i>{% endif %}
+  </a>
+  <span class="text-muted fs-7">{{ visit.pet.species }}{% if visit.pet.breed %} · {{ visit.pet.breed }}{% endif %}{% if visit.pet.age_display %} · {{ visit.pet.age_display }}{% endif %}</span>
+</div>

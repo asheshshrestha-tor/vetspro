@@ -1,0 +1,193 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block heading %}Dashboard{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Overview" %}
+{% endblock %}
+
+{% block content %}
+  {% for template_name, panel in panels %}
+    {% include template_name with panel=panel %}
+  {% endfor %}
+
+  <div class="row g-5 g-xl-8 mb-5 mb-xl-8">
+    {% for card in cards %}
+      <div class="col-sm-6 col-xl-3">
+        <a href="{{ card.module.list_url }}" class="card card-flush h-100 hoverable">
+          <div class="card-body d-flex align-items-center gap-5">
+            <span class="stat-card-icon"><i class="ki-outline {{ card.module.icon }} fs-2x"></i></span>
+            <div>
+              <div class="fs-2hx fw-bold text-gray-900 lh-1 mb-1">{{ card.count }}</div>
+              <div class="fw-semibold text-gray-600">{{ card.module.title }}</div>
+            </div>
+          </div>
+        </a>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if chart or checklist %}
+  <div class="row g-5 g-xl-8 mb-5 mb-xl-8">
+    {% if chart %}
+      <div class="col-xl-8">
+        <div class="card card-flush h-100">
+          <div class="card-header pt-7">
+            <h2 class="card-title align-items-start flex-column">
+              <span class="card-label fw-bold text-gray-900 fs-3">Website messages</span>
+              <span class="text-gray-500 mt-1 fw-semibold fs-6">{{ chart.total }} in the last {{ chart.labels|length }} days</span>
+            </h2>
+            <div class="card-toolbar">
+              {% if unread_count %}
+                <a href="{{ inbox.list_url }}?is_read=0" class="badge badge-light-danger fs-7">{{ unread_count }} unread</a>
+              {% else %}
+                <span class="badge badge-light-success fs-7">All read</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="card-body pt-2">
+            <div id="messages_chart" style="height: 300px" role="img" aria-label="Messages received per day over the last {{ chart.labels|length }} days"></div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if checklist %}
+    <div class="{% if chart %}col-xl-4{% else %}col-12{% endif %}">
+      <div class="card card-flush h-100">
+        <div class="card-header pt-7">
+          <h2 class="card-title align-items-start flex-column">
+            <span class="card-label fw-bold text-gray-900 fs-3">Website checklist</span>
+            <span class="text-gray-500 mt-1 fw-semibold fs-6">{{ checklist.done }} of {{ checklist.total }} complete</span>
+          </h2>
+        </div>
+        <div class="card-body pt-4">
+          <div class="progress h-8px bg-light-primary mb-7" role="progressbar" aria-label="Checklist progress" aria-valuenow="{{ checklist.percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar bg-primary" style="width: {{ checklist.percent }}%"></div>
+          </div>
+          {% for item in checklist.items %}
+            <div class="d-flex align-items-center mb-5">
+              {% if item.done %}
+                <i class="ki-outline ki-check-circle fs-1 text-success me-3"></i>
+                <span class="fw-semibold text-gray-600">{{ item.label }}</span>
+              {% else %}
+                <i class="ki-outline ki-cross-circle fs-1 text-danger me-3"></i>
+                <span class="fw-semibold text-gray-900">{{ item.label }}</span>
+                {% if item.url %}<a href="{{ item.url }}" class="btn btn-sm btn-light-primary ms-auto">Add</a>{% endif %}
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if inbox %}
+    <div class="card card-flush">
+      <div class="card-header pt-7">
+        <h2 class="card-title align-items-start flex-column">
+          <span class="card-label fw-bold text-gray-900 fs-3">Latest messages</span>
+          <span class="text-gray-500 mt-1 fw-semibold fs-6">Sent from the contact form</span>
+        </h2>
+        <div class="card-toolbar">
+          <a href="{{ inbox.list_url }}" class="btn btn-sm btn-light-primary">View all</a>
+        </div>
+      </div>
+      <div class="card-body pt-4">
+        {% if recent_messages %}
+          <div class="table-responsive">
+            <table class="table align-middle table-row-dashed fs-6 gy-4">
+              <thead>
+                <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                  <th scope="col">From</th>
+                  <th scope="col">Message</th>
+                  <th scope="col">Received</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody class="fw-semibold text-gray-600">
+                {% for message in recent_messages %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'dashboard:edit' 'contact' 'contactmessage' message.pk %}" class="row-title">{{ message.name }}</a>
+                      <div class="fs-7 text-muted">{{ message.email }}</div>
+                    </td>
+                    <td>{{ message.message|truncatechars:90 }}</td>
+                    <td class="text-nowrap">{{ message.created_at|date:"j M Y, H:i" }}</td>
+                    <td>
+                      {% if message.is_read %}
+                        <span class="badge badge-light-success">Read</span>
+                      {% else %}
+                        <span class="badge badge-light-danger">Unread</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-gray-600 fw-semibold text-center py-10 mb-0">No messages have been received yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  {% if chart %}
+    {{ chart|json_script:"messages-chart-data" }}
+    <script>
+      (function () {
+        var element = document.getElementById("messages_chart");
+        if (!element || typeof ApexCharts === "undefined") return;
+
+        var data = JSON.parse(document.getElementById("messages-chart-data").textContent);
+        var chart = null;
+
+        function cssVar(name) {
+          return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        function render() {
+          if (chart) chart.destroy();
+          var primary = cssVar("--bs-primary");
+          var label = cssVar("--bs-gray-500");
+          var border = cssVar("--bs-border-dashed-color") || cssVar("--bs-gray-200");
+
+          chart = new ApexCharts(element, {
+            series: [{ name: "Messages", data: data.values }],
+            chart: { type: "bar", height: 300, fontFamily: "inherit", toolbar: { show: false }, animations: { enabled: false } },
+            plotOptions: { bar: { columnWidth: "45%", borderRadius: 5 } },
+            colors: [primary],
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            xaxis: {
+              categories: data.labels,
+              axisBorder: { show: false },
+              axisTicks: { show: false },
+              labels: { style: { colors: label, fontSize: "12px" } }
+            },
+            yaxis: {
+              min: 0,
+              forceNiceScale: true,
+              labels: {
+                style: { colors: label, fontSize: "12px" },
+                formatter: function (value) { return Math.round(value); }
+              }
+            },
+            grid: { borderColor: border, strokeDashArray: 4, yaxis: { lines: { show: true } } },
+            tooltip: { style: { fontSize: "12px" } }
+          });
+          chart.render();
+        }
+
+        render();
+        if (typeof KTThemeMode !== "undefined") KTThemeMode.on("kt.thememode.change", render);
+      })();
+    </script>
+  {% endif %}
+{% endblock %}

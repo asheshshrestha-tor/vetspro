@@ -1,0 +1,40 @@
+{# Rows of admin-defined fields: an input per field, with its normal range and the pet's last value. #}
+<div class="table-responsive">
+  <table class="table align-middle table-row-dashed gy-3 mb-0">
+    <thead>
+      <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+        <th scope="col" class="min-w-175px">{{ label }}</th>
+        <th scope="col" class="min-w-200px">Value</th>
+        <th scope="col">Normal</th>
+        <th scope="col" class="min-w-125px">Last recorded</th>
+        <th scope="col"></th>
+      </tr>
+    </thead>
+    <tbody class="fw-semibold text-gray-700">
+      {% for row in forms %}
+        {% with definition=row.definition %}
+          <tr data-value-row data-kind="{{ definition.value_kind }}" data-min="{{ definition.min_value|default_if_none:'' }}" data-max="{{ definition.max_value|default_if_none:'' }}" data-normal="{{ definition.normal_list|join:'|' }}">
+            <th scope="row">
+              <label for="{{ row.value.id_for_label }}" class="text-gray-900">{{ definition.name }}</label>{% if definition.unit_suffix %}<span class="text-muted fs-7"> ({{ definition.unit }})</span>{% endif %}
+              {% if not definition.is_active %}<span class="badge badge-light ms-1">retired</span>{% endif %}
+            </th>
+            <td>
+              {{ row.value }}
+              {% for error in row.value.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+            </td>
+            <td class="text-muted">{{ definition.range_label|default:"—" }}</td>
+            <td class="text-muted fs-7">
+              {% if row.previous %}
+                <span class="{% if row.previous.is_abnormal %}text-danger{% else %}text-gray-700{% endif %}">{{ row.previous.value }}{{ definition.unit_suffix }}</span>
+                <div>{{ row.previous.appointment.visit_date|date:"j M Y" }}</div>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge badge-light-danger{% if not row.is_abnormal %} d-none{% endif %}" data-value-flag>Outside normal</span></td>
+          </tr>
+        {% endwith %}
+      {% empty %}
+        <tr><td colspan="5" class="text-muted">No {{ label|lower }} fields are set up yet. An administrator can add them under Clinic setup.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

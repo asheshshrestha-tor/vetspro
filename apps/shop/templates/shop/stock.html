@@ -1,0 +1,98 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags billing_tags %}
+
+{% block title %}Stock · {{ product.name }}{% endblock %}
+{% block heading %}{{ product.name }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Shop" %}
+  {% include "dashboard/partials/crumb.html" with label="Products" url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label="Stock" %}
+{% endblock %}
+
+{% block actions %}
+  {% if can_change %}
+    <a href="{% url 'dashboard:edit' 'shop' 'product' product.pk %}" class="btn btn-sm fw-bold btn-light-primary"><i class="ki-outline ki-pencil fs-3"></i> Edit product</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="row g-5 g-xl-8">
+    <div class="col-xl-4">
+      <div class="card mb-5">
+        <div class="card-body text-center py-10">
+          <div class="text-muted fw-semibold mb-2">In stock</div>
+          <div class="fs-3hx fw-bold {% if product.is_out_of_stock %}text-danger{% elif product.is_low_stock %}text-warning{% else %}text-gray-900{% endif %} lh-1">{{ product.stock_quantity|qty }}</div>
+          <div class="text-gray-600 mb-4">{{ product.unit }}</div>
+          {% if product.is_out_of_stock %}<span class="badge badge-light-danger">Out of stock</span>{% elif product.is_low_stock %}<span class="badge badge-light-warning">Low: warning at {{ product.low_stock_level|qty }}</span>{% endif %}
+          <div class="separator separator-dashed my-6"></div>
+          <div class="text-gray-700">{{ product.category }} · {{ product.price|rs }}</div>
+          {% if product.cost_price %}<div class="text-muted fs-7">Cost {{ product.cost_price|rs }}</div>{% endif %}
+        </div>
+      </div>
+
+      {% if can_adjust %}
+        <form method="post" novalidate class="card mb-5">
+          {% csrf_token %}
+          <div class="card-header"><div class="card-title"><h2 class="fs-4 fw-bold m-0">Record a stock change</h2></div></div>
+          <div class="card-body">
+            {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+            {% for field in form %}
+              <div class="mb-5">
+                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary w-100">Save</button>
+          </div>
+        </form>
+      {% elif product.track_stock %}
+        <p class="text-muted">Stock changes are recorded by staff allowed to adjust stock. Sales are taken out automatically when an invoice is issued.</p>
+      {% endif %}
+    </div>
+
+    <div class="col-xl-8">
+      <div class="card">
+        <div class="card-header pt-5"><h2 class="card-title"><span class="card-label fw-bold text-gray-900 fs-3">History</span></h2></div>
+        <div class="card-body pt-2">
+          {% if movements %}
+            <div class="table-responsive">
+              <table class="table align-middle table-row-dashed fs-6 gy-3">
+                <thead>
+                  <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                    <th scope="col">When</th><th scope="col">What</th><th scope="col" class="text-end">Change</th><th scope="col" class="text-end">Balance</th><th scope="col">By</th>
+                  </tr>
+                </thead>
+                <tbody class="fw-semibold text-gray-700">
+                  {% for movement in movements %}
+                    <tr>
+                      <td class="text-nowrap">{{ movement.created_at|date:"j M Y, H:i" }}</td>
+                      <td>
+                        {{ movement.get_reason_display }}
+                        {% if movement.invoice %}· <a href="{{ movement.invoice.get_absolute_url }}">{{ movement.invoice.display_number }}</a>{% endif %}
+                        {% if movement.note %}<div class="text-muted fs-7">{{ movement.note }}</div>{% endif %}
+                      </td>
+                      <td class="text-end {% if movement.quantity > 0 %}text-success{% else %}text-danger{% endif %}">{% if movement.quantity > 0 %}+{% endif %}{{ movement.quantity|qty }}</td>
+                      <td class="text-end">{{ movement.balance_after|qty }}</td>
+                      <td>{{ movement.created_by|staff_name|default:"—" }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% if movements.paginator.num_pages > 1 %}
+              <div class="d-flex justify-content-between pt-4">
+                {% if movements.has_previous %}<a href="?page={{ movements.previous_page_number }}" class="btn btn-sm btn-light">Newer</a>{% else %}<span></span>{% endif %}
+                {% if movements.has_next %}<a href="?page={{ movements.next_page_number }}" class="btn btn-sm btn-light">Older</a>{% endif %}
+              </div>
+            {% endif %}
+          {% else %}
+            <p class="text-gray-600 mb-0">No stock recorded yet.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

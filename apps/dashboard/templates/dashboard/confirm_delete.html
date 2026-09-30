@@ -1,0 +1,25 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Delete {{ object }}{% endblock %}
+{% block heading %}Delete {{ module.singular }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label=module.group %}
+  {% include "dashboard/partials/crumb.html" with label=module.title url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label="Delete" %}
+{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-body p-10 text-center">
+      <i class="ki-outline ki-information-5 text-danger fs-5tx mb-5"></i>
+      <h2 class="fw-bold text-gray-900 mb-3">Delete “{{ object }}”?</h2>
+      <p class="text-gray-600 fw-semibold fs-6 mb-8">This cannot be undone. Anything that belongs to this {{ module.singular }} is deleted with it.</p>
+      <form method="post" class="d-flex flex-center flex-wrap gap-3">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, delete</button>
+        <a href="{{ module.list_url }}" class="btn btn-light">Cancel</a>
+      </form>
+    </div>
+  </div>
+{% endblock %}

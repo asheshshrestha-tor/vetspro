@@ -1,0 +1,123 @@
+{% load static dashboard_tags billing_tags %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ invoice.display_number }} | {{ site.short_name }}</title>
+  <style>
+    :root { --navy: #16456b; --orange: #b9591a; --ink: #1f2d3a; --muted: #5c6b78; --line: #d8dee4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #eef1f4; color: var(--ink); font: 14px/1.5 "Segoe UI", Roboto, Arial, sans-serif; }
+    .page { max-width: 820px; margin: 24px auto; background: #fff; padding: 36px 40px; box-shadow: 0 6px 24px rgba(0,0,0,.08); position: relative; }
+    header { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid var(--navy); padding-bottom: 16px; margin-bottom: 20px; }
+    header img { width: 64px; height: 64px; object-fit: contain; }
+    header h1 { margin: 0; font-size: 19px; color: var(--navy); }
+    header p { margin: 2px 0 0; color: var(--muted); font-size: 12.5px; }
+    .doc { margin-left: auto; text-align: right; }
+    .doc strong { display: block; font-size: 18px; color: var(--orange); letter-spacing: .04em; }
+    .parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+    .parties span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { font-size: 12px; color: var(--muted); text-transform: uppercase; background: #f6f8fa; }
+    .num { text-align: right; white-space: nowrap; }
+    .totals { width: 320px; margin-left: auto; margin-top: 12px; }
+    .totals td { border: 0; padding: 4px 8px; }
+    .totals .grand td { border-top: 2px solid var(--ink); font-size: 16px; font-weight: 700; padding-top: 8px; }
+    .muted { color: var(--muted); }
+    .stamp { position: absolute; top: 150px; right: 60px; transform: rotate(-14deg); font-size: 34px; font-weight: 800; letter-spacing: .1em; padding: 4px 18px; border: 4px solid; border-radius: 8px; opacity: .22; }
+    .stamp.paid { color: #0d7a3e; }
+    .stamp.cancelled { color: #b42318; }
+    .stamp.draft { color: #5c6b78; }
+    footer { margin-top: 36px; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; font-size: 12.5px; color: var(--muted); }
+    .signature { border-top: 1px solid var(--ink); min-width: 200px; padding-top: 4px; text-align: center; color: var(--ink); }
+    .toolbar { max-width: 820px; margin: 16px auto 0; display: flex; gap: 8px; justify-content: flex-end; }
+    .toolbar button, .toolbar a { font: inherit; padding: 8px 16px; border-radius: 6px; border: 0; background: var(--navy); color: #fff; cursor: pointer; text-decoration: none; }
+    .toolbar a { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .page { box-shadow: none; margin: 0; max-width: none; padding: 0; }
+      th { background: #f6f8fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { size: A4; margin: 14mm; }
+    }
+    @media (max-width: 640px) { .page { padding: 20px; } .parties, header { flex-wrap: wrap; } .doc { margin-left: 0; text-align: left; } .totals { width: 100%; } }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <a href="{{ invoice.get_absolute_url }}">Back to the invoice</a>
+    <button type="button" onclick="window.print()">Print</button>
+  </div>
+
+  <main class="page">
+    {% if invoice.status == "paid" %}<div class="stamp paid">PAID</div>{% elif invoice.status == "cancelled" %}<div class="stamp cancelled">CANCELLED</div>{% elif invoice.is_draft %}<div class="stamp draft">DRAFT</div>{% endif %}
+
+    <header>
+      <img src="{% static 'images/bmb.jpg' %}" alt="">
+      <div>
+        <h1>{{ site.name }}</h1>
+        <p>{% if site.address %}{{ site.address }} · {% endif %}{{ site.phone }}{% if site.email %} · {{ site.email }}{% endif %}</p>
+        {% if site.pan_number %}<p>PAN / VAT no. {{ site.pan_number }}</p>{% endif %}
+      </div>
+      <div class="doc">
+        <strong>{% if invoice.vat_amount %}TAX INVOICE{% else %}INVOICE{% endif %}</strong>
+        {{ invoice.display_number }}<br>{{ invoice.invoice_date|date:"j M Y" }}
+      </div>
+    </header>
+
+    <div class="parties">
+      <div>
+        <span>Bill to</span>
+        <div><strong>{{ invoice.customer_display }}</strong></div>
+        {% if invoice.phone_display %}<div>{{ invoice.phone_display }}</div>{% endif %}
+        {% if invoice.client.address %}<div class="muted">{{ invoice.client.address }}{% if invoice.client.area %}, {{ invoice.client.area }}{% endif %}</div>{% endif %}
+      </div>
+      {% if invoice.appointment %}
+        <div style="text-align:right">
+          <span>For visit</span>
+          <div><strong>{{ invoice.appointment.number }}</strong></div>
+          <div class="muted">{{ invoice.appointment.pet.name }} · {{ invoice.appointment.visit_date|date:"j M Y" }}</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <table>
+      <thead><tr><th style="width:40px">#</th><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        {% for item in items %}
+          <tr>
+            <td class="muted">{{ forloop.counter }}</td>
+            <td>{{ item.description }}</td>
+            <td class="num">{{ item.quantity|qty }}{% if item.product %} {{ item.product.unit }}{% endif %}</td>
+            <td class="num">{{ item.unit_price|rs }}</td>
+            <td class="num">{{ item.line_total|rs }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr><td>Subtotal</td><td class="num">{{ invoice.subtotal|rs }}</td></tr>
+      {% if invoice.discount %}<tr><td>Discount</td><td class="num">− {{ invoice.discount|rs }}</td></tr>{% endif %}
+      {% if invoice.vat_amount %}<tr><td>VAT {{ invoice.vat_percent|qty }}%</td><td class="num">{{ invoice.vat_amount|rs }}</td></tr>{% endif %}
+      <tr class="grand"><td>Total</td><td class="num">{{ invoice.total|rs }}</td></tr>
+      {% for payment in payments %}
+        <tr class="muted"><td>Paid {{ payment.received_at|date:"j M" }} · {{ payment.get_method_display }}</td><td class="num">{{ payment.amount|rs }}</td></tr>
+      {% endfor %}
+      {% if not invoice.is_draft and invoice.status != "cancelled" %}<tr><td><strong>Balance due</strong></td><td class="num"><strong>{{ invoice.balance|rs }}</strong></td></tr>{% endif %}
+    </table>
+
+    {% if invoice.notes %}<p style="white-space:pre-line;margin-top:18px">{{ invoice.notes }}</p>{% endif %}
+
+    <footer>
+      <div>
+        {{ site.invoice_footer }}<br>
+        {% if invoice.issued_by %}Issued by {{ invoice.issued_by|staff_name }}{% endif %}
+      </div>
+      <div class="signature">Authorised signature</div>
+    </footer>
+  </main>
+</body>
+</html>

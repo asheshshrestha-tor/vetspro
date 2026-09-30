@@ -1,0 +1,9 @@
+{% for message in messages %}
+  <div class="alert alert-dismissible d-flex align-items-center p-5 mb-7 {% if 'error' in message.tags %}bg-light-danger{% else %}bg-light-success{% endif %}" role="status">
+    <i class="ki-outline {% if 'error' in message.tags %}ki-information-5 text-danger{% else %}ki-check-circle text-success{% endif %} fs-2hx me-4"></i>
+    <div class="d-flex flex-column pe-0 pe-sm-10 fw-semibold text-gray-800">{{ message }}</div>
+    <button type="button" class="position-absolute position-sm-relative m-2 m-sm-0 top-0 end-0 btn btn-icon ms-sm-auto" data-bs-dismiss="alert" aria-label="Close">
+      <i class="ki-outline ki-cross fs-1"></i>
+    </button>
+  </div>
+{% endfor %}

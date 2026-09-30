@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}FAQ | {{ site.short_name }}{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="FAQ" %}
+
+  <section class="section section--tight-top">
+    <div class="container narrow">
+      <header class="section-head reveal">
+        <h2>Frequently Asked Questions</h2>
+        <p>Can't find the answer you need? Get in touch and we will be glad to help.</p>
+        <a class="btn btn--primary" href="{% url 'contact:contact' %}">Contact us</a>
+      </header>
+
+      <div class="notice reveal">
+        <strong>Important message to all pet owners:</strong>
+        if your pet is in distress, do not wait for a reply to a message. Call us straight away{% if site.phone %} on
+        <a href="{{ site.phone_href }}">{{ site.phone }}</a>{% endif %}.
+      </div>
+
+      {% for category in categories %}
+        {% if category.faqs.all %}
+          <h3 class="faq-group">{{ category.name }}</h3>
+          {% for faq in category.faqs.all %}
+            {% include "partials/faq_item.html" %}
+          {% endfor %}
+        {% endif %}
+      {% empty %}
+        <p class="empty-state">Questions and answers will be published here soon.</p>
+      {% endfor %}
+    </div>
+  </section>
+{% endblock %}

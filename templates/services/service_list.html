@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Services | {{ site.short_name }}{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="Our Services" %}
+
+  <section class="section section--tight-top">
+    <div class="container">
+      <header class="section-head reveal">
+        <p class="eyebrow eyebrow--dark">Care around the clock</p>
+        <h2>How we can help</h2>
+        <p>{{ site.description }}</p>
+      </header>
+
+      {% if services %}
+        <div class="card-grid">
+          {% for service in services %}
+            {% include "partials/service_card.html" %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-state">Our list of services will be published here soon. Please call us for details.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% include "partials/cta.html" %}
+{% endblock %}

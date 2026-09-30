@@ -1,0 +1,24 @@
+{% load dashboard_tags %}
+<tr data-inline-row>
+  {% for field in form.visible_fields %}
+    {% if field.name != "DELETE" %}
+      <td>
+        {% if field|is_checkbox %}
+          <div class="form-check form-check-custom form-check-solid mt-3">{{ field }}</div>
+        {% else %}
+          {{ field }}
+        {% endif %}
+        {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+      </td>
+    {% endif %}
+  {% endfor %}
+  <td class="text-end">
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="invalid-feedback d-block text-start">{{ error }}</div>{% endfor %}
+    <label class="btn btn-icon btn-bg-light btn-active-color-danger btn-sm mt-1" title="Remove this row">
+      <span class="d-none">{{ form.DELETE }}</span>
+      <i class="ki-outline ki-trash fs-2"></i>
+      <span class="visually-hidden">Remove this row</span>
+    </label>
+  </td>
+</tr>

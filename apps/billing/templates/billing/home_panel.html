@@ -1,0 +1,60 @@
+{% load billing_tags %}
+<div class="row g-5 g-xl-8 mb-5 mb-xl-8">
+  <div class="col-xl-4">
+    <div class="card card-flush h-100">
+      <div class="card-header pt-7">
+        <h2 class="card-title align-items-start flex-column">
+          <span class="card-label fw-bold text-gray-900 fs-3">Sales today</span>
+          <span class="text-gray-500 mt-1 fw-semibold fs-6">{{ panel.sales_count }} invoice{{ panel.sales_count|pluralize }} issued</span>
+        </h2>
+      </div>
+      <div class="card-body pt-4">
+        <div class="fs-2hx fw-bold text-gray-900 lh-1 mb-2">{{ panel.sales_total|rs }}</div>
+        <div class="fw-semibold text-gray-600 mb-6">Received today: <span class="text-gray-900 fw-bold">{{ panel.received|rs }}</span></div>
+        {% for row in panel.by_method %}
+          <div class="d-flex mb-2 fs-7">
+            <span class="text-gray-600 flex-grow-1">{% for key, label in panel.methods.items %}{% if key == row.method %}{{ label }}{% endif %}{% endfor %}</span>
+            <span class="fw-bold">{{ row.total|rs }}</span>
+          </div>
+        {% endfor %}
+        {% if panel.can_add %}<a href="{% url 'dashboard:add' 'billing' 'invoice' %}" class="btn btn-sm btn-primary mt-4">New sale</a>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-xl-8">
+    <div class="card card-flush h-100">
+      <div class="card-header pt-7">
+        <h2 class="card-title align-items-start flex-column">
+          <span class="card-label fw-bold text-gray-900 fs-3">Recent invoices</span>
+          <span class="text-gray-500 mt-1 fw-semibold fs-6">
+            {% if panel.unpaid_count %}{{ panel.unpaid_count }} unpaid, {{ panel.unpaid_total|rs }} due{% else %}Nothing unpaid{% endif %}{% if panel.drafts %} · {{ panel.drafts }} draft{{ panel.drafts|pluralize }}{% endif %}
+          </span>
+        </h2>
+        <div class="card-toolbar"><a href="{% url 'dashboard:list' 'billing' 'invoice' %}" class="btn btn-sm btn-light-primary">View all</a></div>
+      </div>
+      <div class="card-body pt-2">
+        {% if panel.recent %}
+          <div class="table-responsive">
+            <table class="table align-middle table-row-dashed fs-6 gy-3 mb-0">
+              <tbody class="fw-semibold text-gray-700">
+                {% for invoice in panel.recent %}
+                  <tr>
+                    <td><a href="{{ invoice.get_absolute_url }}" class="row-title">{{ invoice.display_number }}</a><div class="text-muted fs-7">{{ invoice.invoice_date|date:"j M Y" }}</div></td>
+                    <td>{{ invoice.customer_display }}</td>
+                    <td class="text-end">{{ invoice.total|rs }}</td>
+                    <td class="text-end">
+                      <span class="badge badge-light-{% if invoice.payment_label == 'Paid' %}success{% elif invoice.payment_label == 'Cancelled' %}danger{% else %}warning{% endif %}">{{ invoice.payment_label }}</span>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p class="text-gray-600 mb-0">No invoices issued yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>

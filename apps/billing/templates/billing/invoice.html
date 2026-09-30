@@ -1,0 +1,241 @@
+{% extends "dashboard/base.html" %}
+{% load assets static dashboard_tags billing_tags %}
+
+{% block title %}{{ invoice.display_number }}{% endblock %}
+{% block heading %}{% if invoice.is_draft %}Bill (draft){% else %}Invoice {{ invoice.number }}{% endif %}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Billing" %}
+  {% include "dashboard/partials/crumb.html" with label="Invoices" url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label=invoice.display_number %}
+{% endblock %}
+
+{% block actions %}
+  <a href="{{ back_url }}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back</a>
+  {% if not invoice.is_draft %}
+    <a href="{% url 'dashboard:invoice_print' invoice.pk %}" target="_blank" rel="noopener" class="btn btn-sm fw-bold btn-light-primary"><i class="ki-outline ki-printer fs-3"></i> Print</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="card mb-5 mb-xl-8">
+    <div class="card-body d-flex flex-wrap gap-8 py-6">
+      <div>
+        <div class="text-muted fs-7">Status</div>
+        <span class="badge badge-light-{% if invoice.payment_label == 'Paid' %}success{% elif invoice.payment_label == 'Partly paid' %}warning{% elif invoice.payment_label == 'Unpaid' %}danger{% else %}{{ invoice.status_color }}{% endif %} fs-6 mt-1">{{ invoice.payment_label }}</span>
+      </div>
+      <div>
+        <div class="text-muted fs-7">Customer</div>
+        <div class="fw-bold text-gray-900">
+          {% if invoice.client %}<a href="{{ invoice.client.get_absolute_url }}">{{ invoice.customer_display }}</a>{% else %}{{ invoice.customer_display }}{% endif %}
+        </div>
+        {% if invoice.phone_display %}<div class="text-muted fs-7">{{ invoice.phone_display }}</div>{% endif %}
+      </div>
+      {% if invoice.appointment %}
+        <div>
+          <div class="text-muted fs-7">Visit</div>
+          <a href="{{ invoice.appointment.get_absolute_url }}" class="fw-bold">{{ invoice.appointment.number }}</a>
+          <div class="text-muted fs-7">{{ invoice.appointment.pet.name }} · {{ invoice.appointment.visit_date|date:"j M Y" }}</div>
+        </div>
+      {% endif %}
+      <div>
+        <div class="text-muted fs-7">Date</div>
+        <div class="fw-bold text-gray-900">{{ invoice.invoice_date|date:"j M Y" }}</div>
+      </div>
+      <div class="ms-lg-auto text-lg-end">
+        <div class="text-muted fs-7">Total</div>
+        <div class="fs-2 fw-bold text-gray-900" data-grand-total-display>{{ invoice.total|rs }}</div>
+        {% if not invoice.is_draft and invoice.status != "cancelled" %}<div class="text-muted fs-7">Balance {{ invoice.balance|rs }}</div>{% endif %}
+      </div>
+    </div>
+    {% if invoice.status == "cancelled" %}
+      <div class="card-footer bg-light-danger py-4">Cancelled {{ invoice.cancelled_at|date:"j M Y, H:i" }}{% if invoice.cancel_reason %}: {{ invoice.cancel_reason }}{% endif %}. Its items were returned to stock.</div>
+    {% endif %}
+  </div>
+
+  {% if can_edit %}
+    <form method="post" novalidate data-invoice-form>
+      {% csrf_token %}
+      <div class="row g-5 g-xl-8">
+        <div class="col-xl-8">
+          <div class="card mb-5">
+            <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">Items</h2></div></div>
+            <div class="card-body pt-4" data-inline="{{ formset.prefix }}">
+              {{ formset.management_form }}
+              {% for error in formset.non_form_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+              <p class="text-gray-600 mb-5">Search a product or service to fill in its price, or type a description and price for anything else.</p>
+              <div class="table-responsive">
+                <table class="table align-middle table-row-dashed gy-3 inline-table invoice-lines">
+                  <thead>
+                    <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                      <th scope="col" class="min-w-250px">Product / service and description</th>
+                      <th scope="col" class="w-100px">Qty</th>
+                      <th scope="col" class="w-125px">Price</th>
+                      <th scope="col" class="text-end w-125px">Amount</th>
+                      <th scope="col" class="text-end">Remove</th>
+                    </tr>
+                  </thead>
+                  <tbody data-inline-rows>
+                    {% for item in formset %}
+                      {% include "billing/partials/item_row.html" with form=item %}
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              <template data-inline-template>
+                {% include "billing/partials/item_row.html" with form=formset.empty_form %}
+              </template>
+              <button type="button" class="btn btn-sm btn-light-primary" data-inline-add><i class="ki-outline ki-plus fs-3"></i> Add item</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-xl-4">
+          <div class="card mb-5">
+            <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">Totals</h2></div></div>
+            <div class="card-body pt-4">
+              {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+              <div class="d-flex justify-content-between mb-4"><span class="text-gray-600">Subtotal</span><span class="fw-bold" data-subtotal>{{ invoice.subtotal|rs }}</span></div>
+              <div class="mb-4">
+                <label class="form-label" for="{{ form.discount.id_for_label }}">Discount (Rs.)</label>
+                {{ form.discount }}
+                {% for error in form.discount.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="mb-4">
+                <label class="form-label" for="{{ form.vat_percent.id_for_label }}">VAT %</label>
+                {{ form.vat_percent }}
+                {% for error in form.vat_percent.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="d-flex justify-content-between mb-4"><span class="text-gray-600">VAT</span><span class="fw-bold" data-vat>{{ invoice.vat_amount|rs }}</span></div>
+              <div class="separator separator-dashed mb-4"></div>
+              <div class="d-flex justify-content-between fs-3"><span class="fw-bold">Total</span><span class="fw-bold text-primary" data-total>{{ invoice.total|rs }}</span></div>
+            </div>
+          </div>
+
+          <div class="card mb-5">
+            <div class="card-body">
+              {% if form.client %}
+                {% include "dashboard/partials/field.html" with field=form.client %}
+                {% include "dashboard/partials/field.html" with field=form.customer_name %}
+                {% include "dashboard/partials/field.html" with field=form.customer_phone %}
+              {% endif %}
+              <label class="form-label" for="{{ form.notes.id_for_label }}">Notes on the invoice</label>
+              {{ form.notes }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card form-actions mb-5">
+        <div class="card-body d-flex flex-wrap gap-3 py-5">
+          <button type="submit" class="btn btn-light-primary">Save draft</button>
+          {% if can_issue %}
+            <button type="submit" name="_issue" value="1" class="btn btn-primary" onclick="return confirm('Issue this invoice? Its items will be taken out of stock and it can no longer be edited.')">
+              <i class="ki-outline ki-check-circle fs-3"></i> Issue invoice
+            </button>
+          {% endif %}
+          {% if can_delete %}
+            <a href="{% url 'dashboard:delete' 'billing' 'invoice' invoice.pk %}" class="btn btn-light-danger ms-auto"><i class="ki-outline ki-trash fs-3"></i> Delete draft</a>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+
+  {% else %}
+    <div class="row g-5 g-xl-8">
+      <div class="col-xl-8">
+        <div class="card mb-5">
+          <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">Items</h2></div></div>
+          <div class="card-body pt-2">
+            <div class="table-responsive">
+              <table class="table align-middle table-row-dashed gy-3">
+                <thead>
+                  <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                    <th scope="col">Item</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Price</th><th scope="col" class="text-end">Amount</th>
+                  </tr>
+                </thead>
+                <tbody class="fw-semibold text-gray-700">
+                  {% for item in items %}
+                    <tr>
+                      <td class="text-gray-900">{{ item.description }}{% if item.product and item.product.name != item.description %}<div class="text-muted fs-7">{{ item.product.name }}</div>{% endif %}</td>
+                      <td class="text-end">{{ item.quantity|qty }}{% if item.product %} {{ item.product.unit }}{% endif %}</td>
+                      <td class="text-end">{{ item.unit_price|rs }}</td>
+                      <td class="text-end">{{ item.line_total|rs }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr><td colspan="4" class="text-muted">No items.</td></tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot class="fw-bold">
+                  <tr><td colspan="3" class="text-end text-gray-600">Subtotal</td><td class="text-end">{{ invoice.subtotal|rs }}</td></tr>
+                  {% if invoice.discount %}<tr><td colspan="3" class="text-end text-gray-600">Discount</td><td class="text-end">− {{ invoice.discount|rs }}</td></tr>{% endif %}
+                  {% if invoice.vat_amount %}<tr><td colspan="3" class="text-end text-gray-600">VAT {{ invoice.vat_percent|qty }}%</td><td class="text-end">{{ invoice.vat_amount|rs }}</td></tr>{% endif %}
+                  <tr class="fs-4"><td colspan="3" class="text-end">Total</td><td class="text-end text-primary">{{ invoice.total|rs }}</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            {% if invoice.notes %}<div class="text-gray-700 message-body mt-4">{{ invoice.notes }}</div>{% endif %}
+            <div class="text-muted fs-7 mt-6">
+              Started {{ invoice.created_at|date:"j M Y, H:i" }}{% if invoice.created_by %} by {{ invoice.created_by|staff_name }}{% endif %}.
+              {% if invoice.issued_at %}Issued {{ invoice.issued_at|date:"j M Y, H:i" }}{% if invoice.issued_by %} by {{ invoice.issued_by|staff_name }}{% endif %}.{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-4">
+        <div class="card mb-5">
+          <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">Payments</h2></div></div>
+          <div class="card-body pt-4">
+            {% for payment in payments %}
+              <div class="d-flex align-items-center mb-4">
+                <div class="flex-grow-1">
+                  <div class="fw-bold text-gray-900">{{ payment.amount|rs }} · {{ payment.get_method_display }}</div>
+                  <div class="text-muted fs-7">{{ payment.received_at|date:"j M Y, H:i" }}{% if payment.received_by %} · {{ payment.received_by|staff_name }}{% endif %}{% if payment.reference %} · Ref {{ payment.reference }}{% endif %}</div>
+                </div>
+              </div>
+            {% empty %}
+              <p class="text-muted">No payments yet.</p>
+            {% endfor %}
+            <div class="separator separator-dashed my-4"></div>
+            <div class="d-flex justify-content-between mb-2"><span class="text-gray-600">Paid</span><span class="fw-bold">{{ invoice.amount_paid|rs }}</span></div>
+            <div class="d-flex justify-content-between fs-4"><span class="fw-bold">Balance</span><span class="fw-bold {% if invoice.balance %}text-danger{% else %}text-success{% endif %}">{{ invoice.balance|rs }}</span></div>
+
+            {% if can_pay %}
+              <form method="post" action="{% url 'dashboard:invoice_pay' invoice.pk %}" class="mt-6" novalidate>
+                {% csrf_token %}
+                <h3 class="fs-5 fw-bold mb-4">Take payment</h3>
+                <div class="mb-3">
+                  <label class="form-label" for="{{ payment_form.amount.id_for_label }}">Amount (Rs.)</label>
+                  {{ payment_form.amount }}
+                </div>
+                <div class="mb-3">
+                  <label class="form-label" for="{{ payment_form.method.id_for_label }}">Method</label>
+                  {{ payment_form.method }}
+                </div>
+                <div class="mb-5">
+                  <label class="form-label" for="{{ payment_form.reference.id_for_label }}">Reference (optional)</label>
+                  {{ payment_form.reference }}
+                </div>
+                <button type="submit" class="btn btn-success w-100"><i class="ki-outline ki-wallet fs-3"></i> Record payment</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if can_cancel %}
+          <form method="post" action="{% url 'dashboard:invoice_cancel' invoice.pk %}" data-cancel-invoice>
+            {% csrf_token %}
+            <input type="hidden" name="reason" value="">
+            <button type="submit" class="btn btn-light-danger w-100"><i class="ki-outline ki-cross-circle fs-3"></i> Cancel invoice</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{% asset 'dashboard/js/forms.js' %}"></script>
+  <script src="{% asset 'billing/billing.js' %}"></script>
+{% endblock %}

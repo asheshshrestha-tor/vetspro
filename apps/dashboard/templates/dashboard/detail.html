@@ -1,0 +1,45 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}{{ object }}{% endblock %}
+{% block heading %}{{ module.singular|capfirst }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label=module.group %}
+  {% include "dashboard/partials/crumb.html" with label=module.title url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label=object %}
+{% endblock %}
+
+{% block actions %}
+  <a href="{{ module.list_url }}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back to list</a>
+{% endblock %}
+
+{% block content %}
+  <div class="card mb-5 mb-xl-10">
+    <div class="card-header">
+      <div class="card-title m-0"><h2 class="fw-bold m-0 fs-3">{{ object }}</h2></div>
+    </div>
+    <div class="card-body p-9">
+      {% for item in details %}
+        <div class="row mb-7">
+          <div class="col-lg-3 fw-semibold text-muted">{{ item.label }}</div>
+          <div class="col-lg-9 fw-semibold text-gray-800 fs-6">
+            {% include "dashboard/partials/cell.html" with cell=item.cell can_toggle=False %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <div class="card-footer d-flex flex-wrap gap-3 py-5">
+      {% if object.email %}
+        <a href="mailto:{{ object.email }}" class="btn btn-primary"><i class="ki-outline ki-sms fs-3"></i> Reply by email</a>
+      {% endif %}
+      {% if object.phone %}
+        <a href="tel:{{ object.phone }}" class="btn btn-light-primary"><i class="ki-outline ki-phone fs-3"></i> Call {{ object.phone }}</a>
+      {% endif %}
+      {% if can_delete %}
+        <a href="{% url 'dashboard:delete' module.app_label module.model_name object.pk %}" class="btn btn-light-danger ms-auto">
+          <i class="ki-outline ki-trash fs-3"></i> Delete
+        </a>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+  <section class="hero" data-slider aria-roledescription="carousel" aria-label="Welcome">
+    <div class="hero__slides">
+      {% for slide in slides %}
+        <div class="hero__slide{% if forloop.first %} is-active{% endif %}"
+             {% if slide.image %}style="background-image: linear-gradient(rgba(14, 49, 80, .78), rgba(14, 49, 80, .78)), url('{{ slide.image.url }}')"{% endif %}
+             data-slide>
+          <div class="container hero__inner">
+            <div class="hero__text">
+              <p class="eyebrow"><i class="fa-solid fa-circle" aria-hidden="true"></i> Open 24/7</p>
+              {% if forloop.first %}<h1>{{ slide.title }}</h1>{% else %}<h2 class="h1">{{ slide.title }}</h2>{% endif %}
+              {% if slide.subtitle %}<p class="hero__subtitle">{{ slide.subtitle }}</p>{% endif %}
+              <div class="hero__actions">
+                {% if slide.button_text and slide.button_url %}
+                  <a class="btn btn--primary" href="{{ slide.button_url }}">{{ slide.button_text }}</a>
+                {% endif %}
+                {% if site.phone_href %}
+                  <a class="btn btn--outline-light" href="{{ site.phone_href }}"><i class="fa-solid fa-phone" aria-hidden="true"></i> {{ site.phone }}</a>
+                {% endif %}
+              </div>
+            </div>
+            <div class="hero__emblem" aria-hidden="true">
+              <img src="{% static 'images/bmb.jpg' %}" alt="">
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="hero__slide is-active">
+          <div class="container hero__inner">
+            <div class="hero__text">
+              <h1>{{ site.name }}</h1>
+              <p class="hero__subtitle">{{ site.tagline }}</p>
+              <div class="hero__actions">
+                <a class="btn btn--primary" href="{% url 'contact:contact' %}">Contact us</a>
+              </div>
+            </div>
+            <div class="hero__emblem" aria-hidden="true">
+              <img src="{% static 'images/bmb.jpg' %}" alt="">
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% if slides|length > 1 %}
+      <div class="hero__controls">
+        <button type="button" data-slider-prev aria-label="Previous slide"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+        <button type="button" data-slider-next aria-label="Next slide"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+      </div>
+    {% endif %}
+
+    <svg class="curve" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,80 C360,0 1080,0 1440,80 L1440,80 L0,80 Z"></path>
+    </svg>
+  </section>
+
+  {% include "partials/paw_divider.html" %}
+
+  {% if services %}
+    <section class="section section--tight-top">
+      <div class="container">
+        <header class="section-head reveal">
+          <h2>Our Services</h2>
+          <p>From routine care to life-threatening emergencies, our team is ready to look after your pet at any hour.</p>
+        </header>
+        <div class="card-grid">
+          {% for service in services %}
+            {% include "partials/service_card.html" %}
+          {% endfor %}
+        </div>
+        <p class="text-center section-foot"><a class="btn btn--outline" href="{% url 'services:list' %}">View all services</a></p>
+      </div>
+    </section>
+  {% endif %}
+
+  {% include "partials/cta.html" %}
+  {% include "partials/stats.html" %}
+
+  <section class="section">
+    <div class="container split">
+      <div class="split__text reveal">
+        <p class="eyebrow eyebrow--dark">About Us</p>
+        <h2>{{ site.about_heading|default:"Our goal: Happy &amp; Healthy Pets" }}</h2>
+        {{ site.about_text|linebreaks }}
+        <a class="btn btn--primary" href="{% url 'core:about' %}">More about us</a>
+      </div>
+      <div class="split__media reveal">
+        {% if site.about_image %}
+          <img src="{{ site.about_image.url }}" alt="" loading="lazy">
+        {% else %}
+          <div class="emblem-panel"><img src="{% static 'images/bmb.jpg' %}" alt="" loading="lazy"></div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if testimonials %}
+    <section class="section section--soft">
+      <div class="container">
+        <header class="section-head reveal">
+          <h2>What our clients say</h2>
+        </header>
+        <div class="testimonials" data-carousel>
+          <div class="testimonials__track" data-carousel-track tabindex="0" aria-label="Client testimonials">
+            {% for t in testimonials %}
+              <figure class="testimonial">
+                <div class="testimonial__stars" aria-label="{{ t.rating }} out of 5 stars">
+                  {% for _ in t.stars %}<i class="fa-solid fa-star" aria-hidden="true"></i>{% endfor %}
+                </div>
+                <blockquote>{{ t.quote }}</blockquote>
+                <figcaption>
+                  {% if t.photo %}
+                    <img src="{{ t.photo.url }}" alt="" loading="lazy">
+                  {% else %}
+                    <span class="avatar" aria-hidden="true">{{ t.name|first }}</span>
+                  {% endif %}
+                  <span><strong>{{ t.name }}</strong>{% if t.detail %}<small>{{ t.detail }}</small>{% endif %}</span>
+                </figcaption>
+              </figure>
+            {% endfor %}
+          </div>
+          <div class="testimonials__controls">
+            <button type="button" data-carousel-prev aria-label="Previous testimonials"><i class="fa-solid fa-chevron-left" aria-hidden="true"></i></button>
+            <button type="button" data-carousel-next aria-label="Next testimonials"><i class="fa-solid fa-chevron-right" aria-hidden="true"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+
+  {% if team %}
+    <section class="section">
+      <div class="container">
+        <header class="section-head reveal">
+          <h2>Our Team</h2>
+          <p>Meet the people who care for your pets.</p>
+        </header>
+        <div class="card-grid">
+          {% for member in team %}
+            {% include "partials/team_card.html" %}
+          {% endfor %}
+        </div>
+        <p class="text-center section-foot"><a class="btn btn--outline" href="{% url 'team:list' %}">View all team</a></p>
+      </div>
+    </section>
+  {% endif %}
+
+  <section class="section section--soft" id="contact">
+    <div class="container">
+      <header class="section-head reveal">
+        <h2>Get in Touch</h2>
+        <p>For emergencies please call us directly. For anything else, send a message and we will get back to you.</p>
+      </header>
+      <div class="split split--top">
+        <div>{% include "partials/contact_info.html" %}</div>
+        <div class="panel reveal">
+          <h3>Send a message</h3>
+          {% include "partials/contact_form.html" %}
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

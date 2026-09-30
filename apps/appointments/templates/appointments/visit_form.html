@@ -1,0 +1,241 @@
+{% load static dashboard_tags %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% if visit %}{{ visit.number }} · {{ pet.name }}{% else %}Registration form{% endif %} | {{ site.short_name }}</title>
+  <style>
+    :root { --navy: #16456b; --orange: #b9591a; --ink: #111; --muted: #555; --line: #222; --soft: #999; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9ecef; color: var(--ink); font: 13px/1.45 Arial, "Segoe UI", sans-serif; }
+    .sheet { width: 210mm; min-height: 297mm; margin: 16px auto; background: #fff; padding: 12mm 13mm; box-shadow: 0 4px 18px rgba(0,0,0,.12); position: relative; }
+    .sheet + .sheet { margin-top: 24px; }
+
+    .letterhead { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 6mm; }
+    .letterhead img { width: 26mm; height: 26mm; object-fit: contain; }
+    .letterhead .names { text-align: left; }
+    .letterhead h1 { margin: 0; font-size: 21px; color: var(--navy); line-height: 1.15; }
+    .letterhead .tagline { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-size: 15px; color: var(--orange); margin-top: 2px; }
+    .letterhead .contact { font-family: Georgia, "Times New Roman", serif; font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .letterhead.small { justify-content: flex-start; }
+    .letterhead.small img { width: 16mm; height: 16mm; }
+    .letterhead.small h1 { font-size: 16px; }
+    .letterhead.small .tagline { font-size: 12px; }
+
+    .ref { text-align: right; font-size: 11px; color: var(--muted); margin: -2mm 0 1mm; }
+    .ref strong { color: var(--ink); }
+    .intro { text-align: center; font-weight: 700; font-size: 12.5px; margin: 0 0 3mm; }
+    h2 { text-align: center; font-size: 17px; margin: 3mm 0 3mm; letter-spacing: .02em; }
+
+    .reg-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 3.2mm; font-weight: 700; }
+    .reg-row .item { display: flex; align-items: flex-end; gap: 4px; }
+    .reg-row .grow { flex: 1; }
+    .fill { flex: 1; border-bottom: 1.5px dotted var(--ink); min-height: 18px; padding: 0 4px; font-weight: 400; font-family: "Segoe Print", "Comic Sans MS", cursive, Arial; color: #0b2a4a; overflow-wrap: anywhere; }
+    .w-date { width: 34mm; flex: none; }
+    .w-short { width: 26mm; flex: none; }
+    .box { display: inline-block; width: 13px; height: 13px; border: 1.5px solid var(--ink); vertical-align: -2px; margin-left: 4px; position: relative; }
+    .box.checked::after { content: "✓"; position: absolute; left: 0; top: -5px; font-size: 15px; color: #0b2a4a; }
+    .choice { margin-right: 18px; font-weight: 700; white-space: nowrap; }
+
+    .section { border: 1.5px solid var(--line); padding: 2mm 3mm 3mm; margin-bottom: 4mm; }
+    .section h3 { text-align: center; font-size: 16px; margin: 0 0 2mm; }
+    .cells { display: grid; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+    .cells > div { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 2mm 2.5mm; min-height: 16mm; }
+    .cells .label { font-weight: 700; font-size: 12px; }
+    .cells .value { font-family: "Segoe Print", "Comic Sans MS", cursive, Arial; color: #0b2a4a; margin-top: 1mm; font-size: 12px; }
+    .cells .value.flag { color: #b42318; font-weight: 700; }
+    .plain-title { text-align: center; font-size: 16px; font-weight: 700; margin: 4mm 0 2mm; }
+    .exam > div { min-height: 13mm; }
+
+    .authorization { border-top: 1.5px dashed var(--ink); margin-top: 5mm; padding-top: 3mm; }
+    .authorization h3 { text-align: center; font-size: 16px; margin: 0 0 2mm; }
+    .authorization p { margin: 0 0 4mm; font-size: 13px; text-align: justify; white-space: pre-line; }
+    .sign-row { display: flex; gap: 24px; font-weight: 700; margin-bottom: 4mm; align-items: flex-end; }
+    .sign-row .item { display: flex; gap: 4px; align-items: flex-end; flex: 1; }
+
+    .page-title { font-size: 16px; font-weight: 700; margin: 4mm 0 2mm; }
+    .big-box { border: 1.5px solid var(--line); min-height: 120mm; padding: 4mm; }
+    .result-box { border: 1px solid var(--line); min-height: 42mm; padding: 4mm; }
+    .big-box table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .big-box th, .big-box td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #ddd; vertical-align: top; }
+    .big-box th { font-size: 11px; text-transform: uppercase; color: var(--muted); }
+    .notes { white-space: pre-line; margin-top: 3mm; }
+    .signature { position: absolute; right: 16mm; bottom: 22mm; text-align: center; min-width: 50mm; }
+    .signature .line { border-top: 1.5px dotted var(--ink); padding-top: 2px; font-weight: 700; font-size: 15px; }
+    .signature .who { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+
+    .toolbar { width: 210mm; margin: 16px auto 0; display: flex; gap: 8px; justify-content: flex-end; }
+    .toolbar button, .toolbar a { font: 14px Arial, sans-serif; padding: 8px 16px; border-radius: 6px; border: 0; background: var(--navy); color: #fff; cursor: pointer; text-decoration: none; }
+    .toolbar a { background: #fff; color: var(--navy); border: 1px solid #ccd; }
+
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .sheet { margin: 0; box-shadow: none; width: auto; min-height: 0; height: 296mm; overflow: hidden; }
+      .sheet + .sheet { margin-top: 0; break-before: page; page-break-before: always; }
+      @page { size: A4; margin: 0; }
+    }
+    @media screen and (max-width: 820px) {
+      .sheet, .toolbar { width: auto; margin: 8px; }
+      .sheet { padding: 16px; min-height: 0; }
+      .signature { position: static; margin: 12mm 0 0 auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    {% if visit %}<a href="{{ visit.get_absolute_url }}">Back to the visit</a>{% else %}<a href="{% url 'dashboard:appointment_queue' %}">Back to the queue</a>{% endif %}
+    <button type="button" onclick="window.print()">Print</button>
+  </div>
+
+  {# Page 1: registration, history, vaccination, examination and authorization #}
+  <section class="sheet">
+    <header class="letterhead">
+      <img src="{% static 'images/bmb.jpg' %}" alt="">
+      <div class="names">
+        <h1>{{ site.name }}</h1>
+        {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
+        <div class="contact">{% if site.address %}{{ site.address }} · {% endif %}{{ site.phone }}</div>
+      </div>
+    </header>
+
+    <p class="intro">Thank you for giving us the opportunity to care for your pet.<br>Please take the time to fill in this form completely.</p>
+    <h2>REGISTRATION</h2>
+    {% if visit %}<div class="ref">Appointment <strong>{{ visit.number }}</strong>{% if visit.token %} · Token <strong>{{ visit.token }}</strong>{% endif %}</div>{% endif %}
+
+    <div class="reg-row">
+      <div class="item grow">Owner's Name:<span class="fill">{{ client.full_name }}</span></div>
+      <div class="item grow">Address:<span class="fill">{% if client %}{% if client.address and client.area %}{{ client.address }}, {{ client.area }}{% else %}{{ client.address|default:client.area }}{% endif %}{% endif %}</span></div>
+      <div class="item">Date:<span class="fill w-date">{{ visit.visit_date|date:"j M Y" }}</span></div>
+    </div>
+    <div class="reg-row">
+      <div class="item grow">Contact:<span class="fill">{{ client.phone }}</span></div>
+      <div class="item grow">Pet's Name:<span class="fill">{{ pet.name }}</span></div>
+      <div class="item">Body Wt.:<span class="fill w-short">{% if visit.weight_kg is not None %}{{ visit.weight_kg|floatformat:"-2" }} kg{% endif %}</span></div>
+    </div>
+    <div class="reg-row">
+      <div class="item">Species:</div>
+      <div>
+        {% for species in species_list %}
+          <span class="choice">{{ species.name }}<span class="box{% if pet.species_id == species.pk %} checked{% endif %}"></span></span>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="reg-row">
+      <div class="item">Gender:</div>
+      <div>
+        <span class="choice">Male<span class="box{% if pet.sex == 'male' %} checked{% endif %}"></span></span>
+        <span class="choice">Female<span class="box{% if pet.sex == 'female' %} checked{% endif %}"></span></span>
+        <span class="choice">Neutered / spayed<span class="box{% if pet.is_neutered %} checked{% endif %}"></span></span>
+      </div>
+    </div>
+    <div class="reg-row">
+      <div class="item">Age:<span class="fill w-short">{{ pet.age_display }}</span></div>
+      <div class="item grow">Breed:<span class="fill">{{ pet.breed }}</span></div>
+      <div class="item grow">Color:<span class="fill">{{ pet.color }}</span></div>
+    </div>
+    {% if pet.alerts %}
+      <div class="reg-row"><div class="item grow">Allergies / alerts:<span class="fill" style="color:#b42318">{{ pet.alerts }}</span></div></div>
+    {% endif %}
+
+    {% if history_cells %}
+      <div class="section">
+        <h3>Patient's History</h3>
+        <div class="cells" style="grid-template-columns: repeat({% if history_cells|length < 6 %}{{ history_cells|length }}{% else %}6{% endif %}, 1fr);">
+          {% for cell in history_cells %}
+            <div>
+              <div class="label">{{ cell.field.name }}</div>
+              <div class="value{% if cell.record.is_abnormal %} flag{% endif %}">{{ cell.record.value|default:"" }}</div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    {% if vaccine_cells %}
+      <div class="plain-title">Vaccination Record</div>
+      <div class="cells" style="grid-template-columns: repeat({% if vaccine_cells|length < 4 %}{{ vaccine_cells|length }}{% else %}4{% endif %}, 1fr);">
+        {% for cell in vaccine_cells %}
+          <div>
+            <div class="label">{{ cell.field.name }}</div>
+            <div class="value">
+              {% if cell.record %}
+                {% if cell.record.given_on %}{{ cell.record.given_on|date:"j M Y" }}{% endif %}
+                {% if cell.record.next_due_date %}<br><span style="font-size:11px">Due {{ cell.record.next_due_date|date:"j M Y" }}</span>{% endif %}
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if exam_cells %}
+      <div class="plain-title">Clinical Examination</div>
+      <div class="cells exam" style="grid-template-columns: repeat({% if exam_cells|length < 5 %}{{ exam_cells|length }}{% else %}5{% endif %}, 1fr);">
+        {% for cell in exam_cells %}
+          <div>
+            <div class="label">{{ cell.field.name }}:</div>
+            <div class="value{% if cell.record.is_abnormal %} flag{% endif %}">{% if cell.record %}{{ cell.record.value }}{{ cell.field.unit_suffix }}{% endif %}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="authorization">
+      <h3>AUTHORIZATION</h3>
+      <p>{{ site.consent_text }}</p>
+      <div class="sign-row">
+        <div class="item">Name of Owner:<span class="fill">{{ client.full_name }}</span></div>
+        <div class="item" style="flex:0 0 60mm">Date:<span class="fill">{{ visit.visit_date|date:"j M Y" }}</span></div>
+      </div>
+      <div class="sign-row">
+        <div class="item" style="flex:0 0 100mm">Signature:<span class="fill"></span></div>
+      </div>
+    </div>
+  </section>
+
+  {# Page 2: treatment and result #}
+  <section class="sheet">
+    <header class="letterhead small">
+      <img src="{% static 'images/bmb.jpg' %}" alt="">
+      <div class="names">
+        <h1>{{ site.name }}</h1>
+        {% if site.tagline %}<div class="tagline">{{ site.tagline }}</div>{% endif %}
+      </div>
+      {% if visit %}<div style="margin-left:auto;text-align:right;font-size:12px;color:#555"><strong style="color:#111">{{ pet.name }}</strong> · {{ client.full_name }}<br>{{ visit.number }} · {{ visit.visit_date|date:"j M Y" }}</div>{% endif %}
+    </header>
+
+    <div class="page-title">Treatment</div>
+    <div class="big-box">
+      {% if treatments %}
+        <table>
+          <thead><tr><th>Medicine / procedure</th><th>Dose</th><th>Route</th><th>Frequency</th><th>Duration</th></tr></thead>
+          <tbody>
+            {% for treatment in treatments %}
+              <tr>
+                <td><strong>{{ treatment.name }}</strong>{% if treatment.notes %}<br><span style="color:#555">{{ treatment.notes }}</span>{% endif %}</td>
+                <td>{{ treatment.dose }}</td><td>{{ treatment.route }}</td><td>{{ treatment.frequency }}</td><td>{{ treatment.duration }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+      {% if visit.clinical_notes %}<div class="notes"><strong>Findings:</strong> {{ visit.clinical_notes }}</div>{% endif %}
+      {% if visit.diagnosis %}<div class="notes"><strong>Diagnosis:</strong> {{ visit.diagnosis }}</div>{% endif %}
+    </div>
+
+    <div class="page-title" style="margin-top:8mm">Result</div>
+    <div class="result-box">
+      {% if visit.outcome %}<div><strong>Outcome:</strong> {{ visit.get_outcome_display }}</div>{% endif %}
+      {% if visit.result_notes %}<div class="notes">{{ visit.result_notes }}</div>{% endif %}
+      {% if visit.follow_up_date %}<div class="notes"><strong>Next visit:</strong> {{ visit.follow_up_date|date:"l, j M Y" }}</div>{% endif %}
+    </div>
+
+    <div class="signature">
+      {% if visit.attended_by %}<div class="who">{{ visit.attended_by|staff_name }}{% if visit.attended_by.staff_profile.licence_number %} · Reg. {{ visit.attended_by.staff_profile.licence_number }}{% endif %}</div>{% endif %}
+      <div class="line">Signature</div>
+    </div>
+  </section>
+</body>
+</html>

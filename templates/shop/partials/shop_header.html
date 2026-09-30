@@ -1,0 +1,28 @@
+{# Compact shop banner: title, breadcrumb and search, without the tall page header. #}
+<section class="shop-hero">
+  <div class="container shop-hero__inner">
+    <div>
+      <nav class="shop-crumbs" aria-label="Breadcrumb">
+        <a href="{% url 'core:home' %}">Home</a>
+        <span aria-hidden="true">/</span>
+        {% if crumbs %}
+          <a href="{% url 'shop:list' %}">Shop</a>
+          {% for label, url in crumbs %}
+            <span aria-hidden="true">/</span>
+            {% if url %}<a href="{{ url }}">{{ label }}</a>{% else %}<span aria-current="page">{{ label }}</span>{% endif %}
+          {% endfor %}
+        {% else %}
+          <span aria-current="page">Shop</span>
+        {% endif %}
+      </nav>
+      <h1>{{ heading }}</h1>
+      {% if subheading %}<p>{{ subheading }}</p>{% endif %}
+    </div>
+    <form method="get" action="{% url 'shop:list' %}" class="shop-hero__search" role="search">
+      <label class="sr-only" for="shop-q">Search products</label>
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <input id="shop-q" type="search" name="q" value="{{ query }}" placeholder="Search food, medicines, toys…">
+      <button type="submit">Search</button>
+    </form>
+  </div>
+</section>

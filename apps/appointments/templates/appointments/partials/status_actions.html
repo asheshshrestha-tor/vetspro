@@ -1,0 +1,10 @@
+{% for action in actions %}
+  <form method="post" action="{{ action.url }}" class="d-inline"{% if action.ask_reason %} data-cancel-form{% endif %}>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next|default:request.get_full_path }}">
+    {% if action.ask_reason %}<input type="hidden" name="reason" value="">{% endif %}
+    <button type="submit" class="btn btn-sm btn-{{ action.color }} mb-1">
+      <i class="ki-outline {{ action.icon }} fs-4"></i> {{ action.label }}
+    </button>
+  </form>
+{% endfor %}

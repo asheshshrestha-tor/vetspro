@@ -1,0 +1,12 @@
+.venv/
+# Reference copy of the admin theme. The files the dashboard uses are in apps/dashboard/static/.
+demo1/
+__pycache__/
+*.py[cod]
+db.sqlite3
+staticfiles/
+media/*
+!media/.gitkeep
+.env
+.vscode/
+.idea/

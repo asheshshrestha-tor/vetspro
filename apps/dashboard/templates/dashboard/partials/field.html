@@ -1,0 +1,21 @@
+{% load dashboard_tags %}
+<div class="row mb-6">
+  {% if field|is_checkbox %}
+    <div class="col-lg-3 col-form-label fw-semibold fs-6">{{ field.label }}</div>
+    <div class="col-lg-9 d-flex flex-column justify-content-center">
+      <div class="form-check form-switch form-check-custom form-check-solid">
+        {{ field }}
+        <label class="form-check-label sr-only visually-hidden" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      </div>
+      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+      {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+  {% else %}
+    <label class="col-lg-3 col-form-label fw-semibold fs-6{% if field.field.required %} required{% endif %}" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    <div class="col-lg-9 fv-row">
+      {{ field }}
+      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+      {% for error in field.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    </div>
+  {% endif %}
+</div>

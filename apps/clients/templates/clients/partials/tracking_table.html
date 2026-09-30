@@ -1,0 +1,23 @@
+{# One row per visit, one column per field; values outside normal are highlighted. #}
+<div class="table-responsive">
+  <table class="table align-middle table-row-dashed table-sm fs-6 gy-3 mb-0">
+    <thead>
+      <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+        <th scope="col" class="min-w-100px">Visit</th>
+        {% for column in table.columns %}
+          <th scope="col" class="min-w-100px">{{ column.name }}{% if column.unit_suffix %} <span class="text-muted text-lowercase">({{ column.unit }})</span>{% endif %}</th>
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody class="fw-semibold text-gray-700">
+      {% for row in table.rows %}
+        <tr>
+          <th scope="row" class="text-nowrap"><a href="{{ row.visit.get_absolute_url }}">{{ row.visit.visit_date|date:"j M Y" }}</a></th>
+          {% for cell in row.cells %}
+            <td>{% if cell %}<span class="{% if cell.is_abnormal %}badge badge-light-danger fs-7{% endif %}">{{ cell.value }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

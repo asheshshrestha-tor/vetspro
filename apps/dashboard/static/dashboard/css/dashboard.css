@@ -1,0 +1,258 @@
+/* BMB brand colours on top of the theme. */
+
+:root,
+[data-bs-theme="light"] {
+  --bs-primary: #16456b;
+  --bs-primary-active: #0e3150;
+  --bs-primary-light: #e8eff5;
+  --bs-primary-clarity: rgba(22, 69, 107, .2);
+  --bs-primary-inverse: #fff;
+  --bs-primary-rgb: 22, 69, 107;
+  --bs-text-primary: #16456b;
+  --bs-link-color: #16456b;
+  --bs-link-color-rgb: 22, 69, 107;
+  --bs-link-hover-color: #0e3150;
+  --bs-component-active-bg: #16456b;
+  --bs-component-hover-color: #16456b;
+  --bs-component-checked-bg: #16456b;
+  --bs-menu-link-color-hover: #16456b;
+  --bs-menu-link-color-show: #16456b;
+  --bs-menu-link-color-here: #16456b;
+  --bs-menu-link-color-active: #16456b;
+  --bmb-orange: #d4722a;
+  --bmb-orange-strong: #b9591a;
+}
+
+[data-bs-theme="dark"] {
+  --bs-primary: #3b86c4;
+  --bs-primary-active: #2f74ae;
+  --bs-primary-light: #14283a;
+  --bs-primary-clarity: rgba(59, 134, 196, .2);
+  --bs-primary-inverse: #fff;
+  --bs-primary-rgb: 59, 134, 196;
+  --bs-text-primary: #6fb0e6;
+  --bs-link-color: #6fb0e6;
+  --bs-link-color-rgb: 111, 176, 230;
+  --bs-link-hover-color: #9ccbf2;
+  --bs-component-active-bg: #3b86c4;
+  --bs-component-hover-color: #6fb0e6;
+  --bs-component-checked-bg: #3b86c4;
+  --bs-menu-link-color-hover: #6fb0e6;
+  --bs-menu-link-color-show: #6fb0e6;
+  --bs-menu-link-color-here: #6fb0e6;
+  --bs-menu-link-color-active: #6fb0e6;
+}
+
+/* Sidebar */
+[data-kt-app-layout="dark-sidebar"] .app-sidebar {
+  background-color: #0e3150;
+  border-right: 0;
+}
+
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .app-sidebar-logo {
+  border-bottom: 1px dashed rgba(255, 255, 255, .16);
+}
+
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link .menu-title,
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link .menu-icon i {
+  color: #b9cbdb;
+}
+
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link.active {
+  background-color: #16456b;
+}
+
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link.active .menu-title,
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link:hover .menu-title {
+  color: #fff;
+}
+
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link.active .menu-icon i,
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-item .menu-link:hover .menu-icon i {
+  color: #f0a066;
+}
+
+[data-kt-app-layout="dark-sidebar"] .app-sidebar .menu .menu-heading {
+  color: #7f9bb3 !important;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.15rem;
+  white-space: nowrap;
+}
+
+.brand-mark:hover { color: #fff; }
+
+.brand-mark img {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #fff;
+  object-fit: cover;
+}
+
+[data-kt-app-sidebar-minimize="on"]:not([data-kt-app-sidebar-hoverable="true"]) .brand-mark span,
+[data-kt-app-sidebar-minimize="on"] .app-sidebar:not(:hover) .brand-mark span {
+  display: none;
+}
+
+/* Sign-in page */
+.auth-aside {
+  background: linear-gradient(135deg, #0e3150, #16456b 60%, #1f5a88);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-aside::before {
+  content: "";
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  right: -180px;
+  top: -200px;
+  border-radius: 50%;
+  background: rgba(212, 114, 42, .22);
+}
+
+.auth-aside > * { position: relative; }
+
+.auth-logo {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 18px;
+  object-fit: contain;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, .25);
+}
+
+/* Layout: let the main column shrink so wide tables scroll inside their card
+   instead of stretching the whole page on small screens. */
+#kt_app_main,
+#kt_app_content,
+#kt_app_content_container { min-width: 0; }
+
+/* Lists */
+.cell-thumb {
+  width: 56px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bs-gray-100);
+}
+
+.cell-thumb--empty {
+  display: inline-grid;
+  place-items: center;
+  color: var(--bs-gray-400);
+}
+
+/* Keep text readable when the table scrolls sideways on small screens. */
+.table td.cell-title { min-width: 150px; }
+.table td.cell-text { min-width: 170px; }
+
+.badge-toggle {
+  border: 0;
+  cursor: pointer;
+}
+
+.badge-toggle:hover { filter: brightness(.95); }
+
+.table td .row-title { color: var(--bs-gray-800); font-weight: 600; }
+.table td .row-title:hover { color: var(--bs-primary); }
+
+/* Forms */
+.form-check-input:checked,
+.form-check.form-check-solid .form-check-input:checked {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}
+
+.image-input-current {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.image-input-current img {
+  width: 120px;
+  height: 90px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid var(--bs-gray-300);
+}
+
+.inline-table td { vertical-align: top; }
+.inline-table .form-control { min-width: 110px; }
+.inline-table .form-select { min-width: 150px; }
+.inline-table textarea.form-control { min-width: 240px; }
+.invoice-lines td { vertical-align: top; }
+.invoice-lines input[name$="-quantity"],
+.invoice-lines input[name$="-unit_price"] { min-width: 90px; }
+.inline-row--removed { opacity: .45; }
+
+.form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  background: var(--bs-body-bg);
+  border-top: 1px solid var(--bs-border-color);
+}
+
+.stat-card-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--bs-primary-light);
+  color: var(--bs-primary);
+}
+
+.stat-card-icon i { color: inherit; }
+
+.message-body { white-space: pre-line; }
+
+/* Appointments */
+.token-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 42px;
+  height: 42px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--bs-primary);
+  color: var(--bs-primary-inverse);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.select2-container--bootstrap5 .select2-selection { min-height: 43px; }
+
+/* Printing a dashboard page (e.g. a pet's record) leaves out the menus and buttons. */
+@media print {
+  #kt_app_header,
+  #kt_app_sidebar,
+  #kt_app_footer,
+  #kt_scrolltop,
+  #kt_app_toolbar .btn,
+  .no-print,
+  .alert-dismissible .btn {
+    display: none !important;
+  }
+
+  .app-wrapper,
+  .app-main,
+  .app-container {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .card { box-shadow: none !important; break-inside: avoid; }
+}

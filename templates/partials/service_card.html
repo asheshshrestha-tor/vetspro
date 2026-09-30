@@ -1,0 +1,6 @@
+<a class="service-card reveal" href="{{ service.get_absolute_url }}">
+  <span class="service-card__icon"><i class="fa-solid {{ service.icon }}" aria-hidden="true"></i></span>
+  <h3>{{ service.title }}</h3>
+  {% if service.summary %}<p>{{ service.summary }}</p>{% endif %}
+  <span class="service-card__more">Learn more <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
+</a>

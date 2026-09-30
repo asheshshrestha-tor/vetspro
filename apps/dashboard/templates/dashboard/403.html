@@ -1,0 +1,15 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}No access{% endblock %}
+{% block heading %}No access{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-body p-10 text-center">
+      <i class="ki-outline ki-lock-2 text-primary fs-5tx mb-5"></i>
+      <h2 class="fw-bold text-gray-900 mb-3">You do not have access to this page</h2>
+      <p class="text-gray-600 fw-semibold fs-6 mb-8">Ask an administrator to give your account permission.</p>
+      <a href="{% url 'dashboard:home' %}" class="btn btn-primary">Back to the dashboard</a>
+    </div>
+  </div>
+{% endblock %}
