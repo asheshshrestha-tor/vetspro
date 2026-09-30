@@ -1,0 +1,28 @@
+{% load billing_tags %}
+<tr data-inline-row data-treatment-line>
+  <td class="min-w-300px">
+    {{ form.item }}
+    <div class="d-flex gap-2 mt-2">
+      <div class="w-150px flex-shrink-0">{{ form.kind }}</div>
+      <div class="flex-grow-1">{{ form.name }}</div>
+    </div>
+    {% for error in form.item.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    {% for error in form.name.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+    <div class="treatment-dosing mt-2">
+      {{ form.dose }}{{ form.route }}{{ form.frequency }}{{ form.duration }}
+    </div>
+    <div class="mt-2">{{ form.notes }}</div>
+  </td>
+  <td class="w-100px">{{ form.quantity }}{% for error in form.quantity.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
+  <td class="w-125px">{{ form.unit_price }}{% for error in form.unit_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
+  <td class="text-end fw-bold text-gray-800 w-125px" data-line-total>{% if form.instance.amount %}{{ form.instance.amount|rs }}{% endif %}</td>
+  <td class="text-end">
+    {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}
+    {% for error in form.non_field_errors %}<div class="invalid-feedback d-block text-start">{{ error }}</div>{% endfor %}
+    <label class="btn btn-icon btn-bg-light btn-active-color-danger btn-sm" title="Remove this treatment">
+      <span class="d-none">{{ form.DELETE }}</span>
+      <i class="ki-outline ki-trash fs-2"></i>
+      <span class="visually-hidden">Remove this treatment</span>
+    </label>
+  </td>
+</tr>

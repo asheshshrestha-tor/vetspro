@@ -8,15 +8,11 @@ from django.views.generic import TemplateView
 
 from apps.appointments.models import Appointment
 from apps.clients.models import Client
-from apps.core.models import SiteSettings
 from apps.dashboard.mixins import ModuleMixin
 
 from .forms import InvoiceForm, InvoiceItemFormSet, NewSaleForm, PaymentForm
-from .models import Invoice
-
-
-def new_invoice(user, **fields):
-    return Invoice.objects.create(vat_percent=SiteSettings.load().default_vat_percent, created_by=user, **fields)
+from .models import Invoice, InvoiceItem, Payment
+from .services import build_visit_bill, current_visit_bill, new_invoice
 
 
 class InvoicePage(ModuleMixin):
@@ -75,7 +71,10 @@ class InvoiceView(InvoicePage, TemplateView):
             return {}
         return {
             "form": InvoiceForm(data, instance=self.invoice, prefix="invoice", request=self.request),
-            "formset": InvoiceItemFormSet(data, instance=self.invoice, prefix="items"),
+            "formset": InvoiceItemFormSet(
+                data, instance=self.invoice, prefix="items",
+                queryset=self.invoice.items.filter(source=InvoiceItem.MANUAL),
+            ),
         }
 
     def get(self, request, *args, **kwargs):
@@ -87,6 +86,9 @@ class InvoiceView(InvoicePage, TemplateView):
         self.require(self.can_edit)
         forms = self.build_forms(request.POST)
         issue = "_issue" in request.POST and request.user.has_perm("billing.issue_invoice")
+        paid_by = request.POST.get("paid_by", "")
+        if paid_by not in dict(Payment.METHODS) or not request.user.has_perm("billing.record_payment"):
+            paid_by = ""
         if forms["form"].is_valid() and forms["formset"].is_valid():
             try:
                 with transaction.atomic():
@@ -95,12 +97,17 @@ class InvoiceView(InvoicePage, TemplateView):
                     self.invoice.recalculate()
                     if issue:
                         self.invoice.issue(request.user)
+                        if paid_by and self.invoice.total > 0:
+                            self.invoice.add_payment(self.invoice.total, paid_by, request.user)
             except ValidationError as error:
                 # Nothing was saved; show why, e.g. not enough stock.
                 messages.error(request, " ".join(error.messages))
                 return self.render_to_response(self.get_context_data(**forms))
             if issue:
-                messages.success(request, f"Invoice {self.invoice.number} issued for Rs. {self.invoice.total:,.2f}.")
+                message = f"Invoice {self.invoice.number} issued for Rs. {self.invoice.total:,.2f}"
+                if paid_by and self.invoice.total > 0:
+                    message += f" and paid by {dict(Payment.METHODS)[paid_by]}"
+                messages.success(request, message + ".")
             else:
                 messages.success(request, "Draft saved.")
             return redirect(self.invoice.get_absolute_url())
@@ -115,6 +122,11 @@ class InvoiceView(InvoicePage, TemplateView):
             invoice=invoice,
             object=invoice,
             items=invoice.items.select_related("product"),
+            visit_items=invoice.items.exclude(source=InvoiceItem.MANUAL).select_related("product", "treatment"),
+            visit_total=sum(item.line_total for item in invoice.items.exclude(source=InvoiceItem.MANUAL)),
+            visit_fee_line=invoice.items.filter(source=InvoiceItem.VISIT_FEE).exists(),
+            payment_methods=Payment.METHODS,
+            can_take_payment=user.has_perm("billing.record_payment"),
             payments=invoice.payments.select_related("received_by"),
             can_edit=self.can_edit,
             can_issue=self.can_edit and user.has_perm("billing.issue_invoice"),
@@ -174,17 +186,23 @@ class InvoicePrintView(InvoicePage, TemplateView):
 
 
 class VisitInvoiceView(InvoicePage, View):
-    """Open the bill for a visit, starting one if it has none yet."""
+    """Build the visit's bill from its treatments, or open it once it has been issued."""
 
     http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
         visit = get_object_or_404(Appointment.objects.select_related("client"), pk=kwargs["appointment_pk"])
-        existing = visit.invoices.exclude(status=Invoice.CANCELLED).order_by("-created_at").first()
-        if existing is not None:
+        existing = current_visit_bill(visit)
+        if existing is not None and not existing.is_draft:
             self.require(self.module.can_view(request.user))
             return redirect(existing.get_absolute_url())
-        self.require(self.module.user_can_add(request.user))
-        invoice = new_invoice(request.user, client=visit.client, appointment=visit)
-        messages.info(request, f"Started a bill for {visit.number}. Add the medicines, products and services used.")
+        self.require(
+            self.module.user_can_add(request.user) if existing is None else self.module.user_can_change(request.user)
+        )
+        invoice, created = build_visit_bill(visit, request.user)
+        count = invoice.items.exclude(source=InvoiceItem.MANUAL).count()
+        if created:
+            messages.success(request, f"Bill started for {visit.number} with {count} item{'s' if count != 1 else ''} from the visit.")
+        else:
+            messages.success(request, "Bill updated from the visit's treatment.")
         return redirect(invoice.get_absolute_url())

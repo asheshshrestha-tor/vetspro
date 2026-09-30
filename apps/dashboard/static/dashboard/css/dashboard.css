@@ -256,3 +256,10 @@
 
   .card { box-shadow: none !important; break-inside: avoid; }
 }
+
+/* Treatment lines on the visit page */
+.treatment-dosing { display: grid; grid-template-columns: repeat(4, minmax(90px, 1fr)); gap: 8px; }
+.treatment-lines td { vertical-align: top; }
+.treatment-lines input[name$="-quantity"],
+.treatment-lines input[name$="-unit_price"] { min-width: 90px; }
+@media (max-width: 767px) { .treatment-dosing { grid-template-columns: repeat(2, 1fr); } }

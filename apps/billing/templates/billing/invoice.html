@@ -54,16 +54,63 @@
   </div>
 
   {% if can_edit %}
-    <form method="post" novalidate data-invoice-form>
+    {% if invoice.appointment %}
+      {# Rebuilds the lines that come from the visit; its button sits in the visit card below. #}
+      <form method="post" action="{% url 'dashboard:invoice_for_visit' invoice.appointment_id %}" id="refresh-from-visit">{% csrf_token %}</form>
+    {% endif %}
+    <form method="post" novalidate data-invoice-form data-fixed-subtotal="{{ visit_total }}">
       {% csrf_token %}
       <div class="row g-5 g-xl-8">
         <div class="col-xl-8">
+          {% if invoice.appointment %}
+            <div class="card mb-5">
+              <div class="card-header">
+                <div class="card-title flex-column align-items-start">
+                  <h2 class="fs-3 fw-bold m-0">From the visit</h2>
+                  <span class="text-muted fs-7 fw-semibold mt-1">Treatment given in {{ invoice.appointment.number }}{% if visit_fee_line %} and the visit fee{% endif %}</span>
+                </div>
+                <div class="card-toolbar gap-2">
+                  <a href="{{ invoice.appointment.get_absolute_url }}#result" class="btn btn-sm btn-light">Edit treatment</a>
+                  <button type="submit" form="refresh-from-visit" class="btn btn-sm btn-light-primary"><i class="ki-outline ki-arrows-circle fs-4"></i> Update from visit</button>
+                </div>
+              </div>
+              <div class="card-body pt-2">
+                {% if visit_items %}
+                  <div class="table-responsive">
+                    <table class="table align-middle table-row-dashed gy-3 mb-0">
+                      <thead>
+                        <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                          <th scope="col">Item</th><th scope="col" class="text-end">Qty</th><th scope="col" class="text-end">Price</th><th scope="col" class="text-end">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody class="fw-semibold text-gray-700">
+                        {% for item in visit_items %}
+                          <tr>
+                            <td class="text-gray-900">
+                              {{ item.description }}
+                              <span class="badge badge-light ms-1 fs-8">{{ item.get_source_display }}</span>
+                            </td>
+                            <td class="text-end text-nowrap">{{ item.quantity|qty }}{% if item.product %} {{ item.product.unit }}{% endif %}</td>
+                            <td class="text-end text-nowrap">{{ item.unit_price|rs }}</td>
+                            <td class="text-end text-nowrap">{{ item.line_total|rs }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <p class="text-gray-600 mb-0">No charged treatment yet. Add treatment with a price in the visit, then click “Update from visit”.</p>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
           <div class="card mb-5">
-            <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">Items</h2></div></div>
+            <div class="card-header"><div class="card-title"><h2 class="fs-3 fw-bold m-0">{% if invoice.appointment %}Other items{% else %}Items{% endif %}</h2></div></div>
             <div class="card-body pt-4" data-inline="{{ formset.prefix }}">
               {{ formset.management_form }}
               {% for error in formset.non_form_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
-              <p class="text-gray-600 mb-5">Search a product or service to fill in its price, or type a description and price for anything else.</p>
+              <p class="text-gray-600 mb-5">{% if invoice.appointment %}Add anything else the owner is buying, such as food or accessories from the shop. {% endif %}Search a product or service to fill in its price, or type a description and price for anything else.</p>
               <div class="table-responsive">
                 <table class="table align-middle table-row-dashed gy-3 inline-table invoice-lines">
                   <thead>
@@ -130,9 +177,18 @@
         <div class="card-body d-flex flex-wrap gap-3 py-5">
           <button type="submit" class="btn btn-light-primary">Save draft</button>
           {% if can_issue %}
-            <button type="submit" name="_issue" value="1" class="btn btn-primary" onclick="return confirm('Issue this invoice? Its items will be taken out of stock and it can no longer be edited.')">
-              <i class="ki-outline ki-check-circle fs-3"></i> Issue invoice
-            </button>
+            <div class="d-flex flex-wrap align-items-center gap-3 ms-xl-4">
+              {% if can_take_payment %}
+                <label class="text-gray-700 fw-semibold text-nowrap" for="paid-by">Paid now by</label>
+                <select id="paid-by" name="paid_by" class="form-select form-select-solid w-auto">
+                  <option value="">Not paid yet</option>
+                  {% for value, label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+              {% endif %}
+              <button type="submit" name="_issue" value="1" class="btn btn-primary" onclick="return confirm('Issue this invoice? Its items will be taken out of stock and it can no longer be edited.')">
+                <i class="ki-outline ki-check-circle fs-3"></i> Issue invoice
+              </button>
+            </div>
           {% endif %}
           {% if can_delete %}
             <a href="{% url 'dashboard:delete' 'billing' 'invoice' invoice.pk %}" class="btn btn-light-danger ms-auto"><i class="ki-outline ki-trash fs-3"></i> Delete draft</a>

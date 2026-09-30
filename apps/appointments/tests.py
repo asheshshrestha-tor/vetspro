@@ -241,6 +241,7 @@ class ConsultationPermissionTests(ClinicTestCase):
             f"history-{option.pk}-value": "2 days",
             f"vaccine-{rabies.pk}-given_on": visit.visit_date.isoformat(),
             "treatment-TOTAL_FORMS": "1", "treatment-0-kind": "medication", "treatment-0-name": "Omeprazole",
+            "treatment-0-quantity": "1",
             "_complete": "1",
         })
         response = self.client.post(url, data)

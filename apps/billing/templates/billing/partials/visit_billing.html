@@ -12,12 +12,16 @@
           </div>
         {% endfor %}
       {% else %}
-        <div class="text-muted">No bill yet. Add the medicines, products and services used in this visit.</div>
+        <div class="text-muted">No bill yet. “Generate bill” charges the treatment given{% if site.visit_fee_item %} and the {{ site.visit_fee_item.name|lower }}{% endif %}; shop items can be added on the bill.</div>
       {% endif %}
     </div>
     <form method="post" action="{% url 'dashboard:invoice_for_visit' visit.pk %}">
       {% csrf_token %}
-      <button type="submit" class="btn btn-sm btn-success">{% if invoices %}Open bill{% else %}Create bill{% endif %}</button>
+      <button type="submit" class="btn btn-sm btn-success">
+        {% with bill=invoices.0 %}
+          {% if not bill or bill.status == "cancelled" %}Generate bill{% elif bill.is_draft %}Update bill from treatment{% else %}Open bill{% endif %}
+        {% endwith %}
+      </button>
     </form>
   </div>
 </div>

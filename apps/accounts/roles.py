@@ -40,6 +40,7 @@ ROLE_PERMISSIONS = {
             ("clinic_setup", "historyoption"): VIEW,
             ("clinic_setup", "vaccinationtype"): VIEW,
             ("clinic_setup", "examinationtype"): VIEW,
+            ("shop", "treatmentitem"): VIEW,
             **SALES_MODELS,
         },
         "extra": [

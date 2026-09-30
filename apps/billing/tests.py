@@ -280,3 +280,145 @@ class ShopPageTests(ShopTestCase):
         results = self.client.get(reverse("dashboard:autocomplete", args=["shop", "product"]), {"q": "kibble"}).json()["results"]
         self.assertEqual(results[0]["price"], "2450.00")
         self.assertEqual(results[0]["stock"], "10.00")
+
+
+class TreatmentBillingTests(ShopTestCase):
+    """Treatment given in a visit becomes its bill; shop items can be added on top."""
+
+    def setUp(self):
+        self.doxy = Product.objects.create(
+            category=ProductCategory.objects.get(name="Medicines"), name="Doxycycline 100 mg", unit="tablet",
+            price=Decimal("25"), treatment_kind=Product.MEDICINE, default_dose="10 mg/kg", default_route="Oral",
+            default_frequency="Once a day", default_duration="21 days",
+        )
+        change_stock(self.doxy, 100, StockMovement.OPENING)
+        self.consultation.treatment_kind = Product.PROCEDURE
+        self.consultation.save()
+        self.advice = Product.objects.create(
+            category=self.services, name="Diet advice", price=Decimal("0"), track_stock=False,
+            treatment_kind=Product.ADVICE,
+        )
+        self.visit = Appointment.objects.create(client=self.client_a, pet=self.pet, reason="Tick fever")
+
+    def consultation_data(self, rows, **extra):
+        from apps.clinic_setup.models import ExaminationType, HistoryOption, VaccinationType
+
+        data = {
+            "visit-reason": self.visit.reason, "visit-attended_by": "", "visit-weight_kg": "",
+            "clinical-clinical_notes": "", "clinical-diagnosis": "Ehrlichiosis", "clinical-outcome": "",
+            "clinical-result_notes": "", "clinical-follow_up_date": "",
+            "treatment-TOTAL_FORMS": str(len(rows)), "treatment-INITIAL_FORMS": "0",
+            "treatment-MIN_NUM_FORMS": "0", "treatment-MAX_NUM_FORMS": "1000",
+        }
+        for model, prefix in ((HistoryOption, "history"), (ExaminationType, "exam")):
+            for field in model.objects.filter(is_active=True):
+                data[f"{prefix}-{field.pk}-value"] = ""
+        for vaccine in VaccinationType.objects.filter(is_active=True):
+            for name in ("given_on", "next_due_date", "batch_number", "notes"):
+                data[f"vaccine-{vaccine.pk}-{name}"] = ""
+        for index, row in enumerate(rows):
+            base = {"item": "", "kind": "medication", "name": "", "dose": "", "route": "", "frequency": "",
+                    "duration": "", "quantity": "1", "unit_price": "", "notes": ""}
+            base.update(row)
+            for key, value in base.items():
+                data[f"treatment-{index}-{key}"] = value
+        data.update(extra)
+        return data
+
+    def test_catalogue_item_fills_the_treatment_and_generates_the_bill(self):
+        SiteSettings.objects.update_or_create(pk=1, defaults={"visit_fee_item": self.consultation})
+        self.client.force_login(self.vet)
+        response = self.client.post(self.visit.get_absolute_url(), self.consultation_data([
+            {"item": str(self.doxy.pk), "quantity": "21"},
+            {"item": str(self.advice.pk), "kind": "advice"},
+            {"name": "Tick removal", "kind": "procedure", "unit_price": "150"},
+        ], _bill="1"))
+        invoice = Invoice.objects.get()
+        self.assertRedirects(response, invoice.get_absolute_url())
+
+        doxy = self.visit.treatments.get(item=self.doxy)
+        self.assertEqual((doxy.name, doxy.unit_price, doxy.amount), ("Doxycycline 100 mg", Decimal("25.00"), Decimal("525.00")))
+        self.assertIsNone(self.visit.treatments.get(item=self.advice).unit_price)
+
+        lines = {item.description: (item.source, item.line_total) for item in invoice.items.all()}
+        self.assertEqual(lines["Consultation"], ("visit_fee", Decimal("500.00")))
+        self.assertEqual(lines["Tick removal"], ("treatment", Decimal("150.00")))
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(invoice.total, Decimal("1175.00"))
+        self.assertEqual((invoice.client, invoice.appointment), (self.client_a, self.visit))
+
+    def test_regenerating_keeps_shop_items_and_follows_the_treatment(self):
+        self.client.force_login(self.vet)
+        self.client.post(self.visit.get_absolute_url(), self.consultation_data(
+            [{"item": str(self.doxy.pk), "quantity": "10"}], _bill="1"))
+        invoice = Invoice.objects.get()
+        self.add(invoice, self.kibble)  # bought at the counter as well
+        treatment = self.visit.treatments.get()
+        treatment.quantity = Decimal("14")
+        treatment.save()
+
+        self.client.post(reverse("dashboard:invoice_for_visit", args=[self.visit.pk]))
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.items.count(), 2)
+        self.assertEqual(invoice.items.get(source="treatment").quantity, Decimal("14"))
+        self.assertEqual(invoice.total, Decimal("2800.00"))  # 14 x 25 + 2450
+
+        page = self.client.get(invoice.get_absolute_url())
+        self.assertContains(page, "From the visit")
+        self.assertContains(page, "Other items")
+        self.assertEqual(page.context["formset"].queryset.count(), 1)
+
+    def test_completing_bills_automatically_only_when_something_is_charged(self):
+        self.client.force_login(self.vet)
+        self.client.post(self.visit.get_absolute_url(), self.consultation_data(
+            [{"item": str(self.advice.pk), "kind": "advice"}], _complete="1"))
+        self.assertFalse(Invoice.objects.exists())
+
+        other = Appointment.objects.create(client=self.client_a, pet=self.pet, reason="Check-up")
+        self.visit = other
+        self.client.post(other.get_absolute_url(), self.consultation_data(
+            [{"item": str(self.doxy.pk), "quantity": "5"}], _complete="1"))
+        self.assertEqual(Invoice.objects.get().appointment, other)
+
+    def test_issued_bill_is_not_rebuilt(self):
+        self.client.force_login(self.vet)
+        self.client.post(self.visit.get_absolute_url(), self.consultation_data(
+            [{"item": str(self.doxy.pk), "quantity": "5"}], _bill="1"))
+        invoice = Invoice.objects.get()
+        invoice.issue(self.reception)
+        self.visit.treatments.update(quantity=Decimal("50"))
+        response = self.client.post(reverse("dashboard:invoice_for_visit", args=[self.visit.pk]))
+        self.assertRedirects(response, invoice.get_absolute_url())
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.total, Decimal("125.00"))
+
+    def test_issue_and_take_full_payment_in_one_step(self):
+        invoice = self.invoice(customer_name="Walk-in")
+        self.client.force_login(self.reception)
+        data = SalePageTests.items_data(self, [{"product": str(self.kibble.pk), "description": "", "quantity": "1", "unit_price": ""}])
+        data.update({"invoice-customer_name": "Walk-in", "_issue": "1", "paid_by": "esewa"})
+        self.client.post(invoice.get_absolute_url(), data)
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.status, Invoice.PAID)
+        self.assertEqual(invoice.payments.get().method, "esewa")
+
+    def test_treatment_catalogue_module(self):
+        self.client.force_login(self.admin)
+        list_url = reverse("dashboard:list", args=["shop", "treatmentitem"])
+        page = self.client.get(list_url)
+        self.assertContains(page, "Doxycycline 100 mg")
+        self.assertNotContains(page, "Puppy kibble")  # shop-only items stay out of the catalogue
+        response = self.client.post(reverse("dashboard:add", args=["shop", "treatmentitem"]), {
+            "treatment_kind": "procedure", "name": "Ear flushing", "brand": "", "unit": "procedure", "price": "400",
+            "cost_price": "", "default_dose": "", "default_route": "", "default_frequency": "", "default_duration": "",
+            "low_stock_level": "0", "category": "", "description": "", "is_active": "on",
+        })
+        self.assertEqual(response.status_code, 302)
+        item = Product.objects.get(name="Ear flushing")
+        self.assertEqual((item.category.name, item.track_stock, item.show_online), ("Clinic services", False, False))
+
+        self.client.force_login(self.vet)
+        results = self.client.get(reverse("dashboard:autocomplete", args=["shop", "treatmentitem"]), {"q": "doxy"}).json()["results"]
+        self.assertEqual(results[0]["dose"], "10 mg/kg")
+        self.assertEqual(results[0]["kind"], "medication")
+

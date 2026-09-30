@@ -82,6 +82,20 @@ class Product(TimeStampedModel):
         "low-stock warning at", max_digits=10, decimal_places=2, default=5, help_text="Warn when stock falls to this."
     )
 
+    # Items vets can pick in a visit's Treatment tab, with what they usually prescribe.
+    MEDICINE = "medicine"
+    PROCEDURE = "procedure"
+    ADVICE = "advice"
+    TREATMENT_KINDS = [(MEDICINE, "Medicine"), (PROCEDURE, "Procedure"), (ADVICE, "Advice")]
+    treatment_kind = models.CharField(
+        "treatment type", max_length=10, choices=TREATMENT_KINDS, blank=True,
+        help_text="Makes this item available in the Treatment tab of a visit. Leave blank for shop-only items.",
+    )
+    default_dose = models.CharField(max_length=60, blank=True, help_text="e.g. 10 mg/kg")
+    default_route = models.CharField(max_length=60, blank=True, help_text="e.g. oral, SC, IM, IV")
+    default_frequency = models.CharField(max_length=60, blank=True, help_text="e.g. twice a day")
+    default_duration = models.CharField(max_length=60, blank=True, help_text="e.g. 5 days")
+
     is_prescription = models.BooleanField(
         "prescription only", default=False, help_text="Sold only after a vet's advice; shown as such online."
     )
@@ -116,6 +130,27 @@ class Product(TimeStampedModel):
     @property
     def is_online(self):
         return self.is_active and self.show_online and self.category.is_active and self.category.show_online
+
+
+class TreatmentItemManager(models.Manager.from_queryset(ProductQuerySet)):
+    def get_queryset(self):
+        return super().get_queryset().exclude(treatment_kind="")
+
+
+class TreatmentItem(Product):
+    """The treatment catalogue: medicines, procedures and advice vets choose from in a visit.
+
+    These are the same records as shop products, so a medicine has one price and one stock count
+    whether it is sold at the counter or given in a treatment.
+    """
+
+    objects = TreatmentItemManager()
+
+    class Meta:
+        proxy = True
+        ordering = ["treatment_kind", "name"]
+        verbose_name = "treatment item"
+        verbose_name_plural = "treatment catalogue"
 
 
 class StockMovement(models.Model):

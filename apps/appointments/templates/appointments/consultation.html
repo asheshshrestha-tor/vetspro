@@ -1,5 +1,5 @@
 {% extends "dashboard/base.html" %}
-{% load assets static dashboard_tags %}
+{% load assets static dashboard_tags billing_tags %}
 
 {% block title %}{{ visit.number }} · {{ pet.name }}{% endblock %}
 {% block heading %}{{ visit.number }}{% endblock %}
@@ -206,14 +206,51 @@
         {% if can_view_clinical %}
           {# Treatment and result #}
           <div class="tab-pane fade" id="tab-result" role="tabpanel">
-            <h3 class="fs-5 fw-bold text-gray-900 mb-4">Treatment</h3>
+            <h3 class="fs-5 fw-bold text-gray-900 mb-2">Treatment</h3>
             {% if treatment_formset %}
-              {% include "appointments/partials/formset.html" with formset=treatment_formset add_label="Add treatment" %}
+              <p class="text-gray-600 mb-5">
+                Search the treatment catalogue to fill in the usual dose and price, then adjust anything for this pet.
+                “Qty to bill” is how many units are charged, e.g. 21 tablets. Leave the price blank for anything not charged.
+              </p>
+              <div data-inline="{{ treatment_formset.prefix }}" data-treatment-table>
+                {{ treatment_formset.management_form }}
+                {% for error in treatment_formset.non_form_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+                <div class="table-responsive">
+                  <table class="table align-top table-row-dashed gy-4 inline-table treatment-lines mb-2">
+                    <thead>
+                      <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                        <th scope="col">Treatment and dosing</th>
+                        <th scope="col">Qty to bill</th>
+                        <th scope="col">Price</th>
+                        <th scope="col" class="text-end">Amount</th>
+                        <th scope="col" class="text-end">Remove</th>
+                      </tr>
+                    </thead>
+                    <tbody data-inline-rows>
+                      {% for treatment_form in treatment_formset %}
+                        {% include "appointments/partials/treatment_row.html" with form=treatment_form %}
+                      {% endfor %}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colspan="3" class="text-end fw-bold text-gray-700">Treatment total</td>
+                        <td class="text-end fw-bold fs-5 text-gray-900" data-treatment-total></td>
+                        <td></td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+                <template data-inline-template>
+                  {% include "appointments/partials/treatment_row.html" with form=treatment_formset.empty_form %}
+                </template>
+                <button type="button" class="btn btn-sm btn-light-primary" data-inline-add><i class="ki-outline ki-plus fs-3"></i> Add treatment</button>
+              </div>
             {% else %}
               {% for treatment in treatments %}
                 <div class="border border-dashed border-gray-300 rounded p-4 mb-3">
                   <span class="badge badge-light me-2">{{ treatment.get_kind_display }}</span>
                   <span class="fw-bold text-gray-900">{{ treatment.name }}</span>
+                  {% if treatment.amount %}<span class="float-end fw-bold text-gray-800">{{ treatment.quantity|qty }} × {{ treatment.unit_price|rs }} = {{ treatment.amount|rs }}</span>{% endif %}
                   <span class="text-gray-700">
                     {% if treatment.dose %} · {{ treatment.dose }}{% endif %}{% if treatment.route %} · {{ treatment.route }}{% endif %}{% if treatment.frequency %} · {{ treatment.frequency }}{% endif %}{% if treatment.duration %} · {{ treatment.duration }}{% endif %}
                   </span>
@@ -248,6 +285,9 @@
       <div class="card-body d-flex flex-wrap gap-3 py-5">
         <button type="submit" class="btn btn-primary">Save</button>
         <button type="submit" name="_continue" value="1" class="btn btn-light-primary">Save and keep editing</button>
+        {% if can_edit_clinical and can_create_bill %}
+          <button type="submit" name="_bill" value="1" class="btn btn-light-success"><i class="ki-outline ki-bill fs-3"></i> Save and generate bill</button>
+        {% endif %}
         {% if can_complete %}
           <button type="submit" name="_complete" value="1" class="btn btn-success">Save and complete</button>
         {% endif %}

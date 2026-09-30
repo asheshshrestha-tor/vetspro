@@ -186,7 +186,18 @@ class Invoice(TimeStampedModel):
 
 
 class InvoiceItem(models.Model):
+    # Lines made by "Generate bill" are rebuilt from the visit each time; the rest are added by hand.
+    MANUAL = ""
+    FROM_TREATMENT = "treatment"
+    VISIT_FEE = "visit_fee"
+    SOURCES = [(MANUAL, "Added by hand"), (FROM_TREATMENT, "From treatment"), (VISIT_FEE, "Visit fee")]
+
     invoice = models.ForeignKey(Invoice, related_name="items", on_delete=models.CASCADE)
+    source = models.CharField(max_length=10, choices=SOURCES, blank=True, default=MANUAL, editable=False)
+    treatment = models.ForeignKey(
+        "appointments.Treatment", related_name="invoice_items", on_delete=models.SET_NULL, null=True, blank=True,
+        editable=False,
+    )
     product = models.ForeignKey(
         "shop.Product", related_name="invoice_items", on_delete=models.PROTECT, null=True, blank=True
     )

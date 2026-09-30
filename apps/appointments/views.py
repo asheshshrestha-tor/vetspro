@@ -258,15 +258,52 @@ class ConsultationView(AppointmentPage, TemplateView):
             if complete:
                 visit.apply("complete", user=request.user)
 
+        bill = "_bill" in request.POST
+        invoice = self.update_bill(visit, explicit=bill) if (bill or complete) else None
+
         if complete:
             messages.success(request, f"{visit.number} is complete.")
             if visit.follow_up_date and not visit.follow_ups.exists():
                 messages.info(request, "A follow-up date is set. Use “Create follow-up” to book it.")
             return redirect(visit.get_absolute_url())
+        if bill and invoice is not None:
+            return redirect(invoice.get_absolute_url())
         messages.success(request, f"{visit.number} was saved.")
         if "_continue" in request.POST:
             return redirect(visit.get_absolute_url())
         return redirect(safe_next(request, queue_url(visit.visit_date)))
+
+    def update_bill(self, visit, explicit):
+        """Build the visit's bill from its treatment.
+
+        Asked for explicitly, it always runs and explains any problem. On completing a visit it
+        runs quietly, and only when there is something to charge and the bill is still a draft.
+        """
+        from apps.billing.services import build_visit_bill, current_visit_bill
+        from apps.core.models import SiteSettings
+
+        request = self.request
+        existing = current_visit_bill(visit)
+        needed = "billing.add_invoice" if existing is None else "billing.change_invoice"
+        if not request.user.has_perm(needed):
+            if explicit:
+                messages.error(request, "Saved, but your role is not allowed to create or change bills.")
+            return None
+        if not explicit:
+            if existing is not None and not existing.is_draft:
+                return None
+            fee = SiteSettings.load().visit_fee_item
+            has_charges = visit.treatments.filter(unit_price__gt=0, quantity__gt=0).exists() or (fee and fee.is_active)
+            if existing is None and not has_charges:
+                return None
+        try:
+            invoice, created = build_visit_bill(visit, request.user)
+        except ValidationError as error:
+            messages.warning(request, " ".join(error.messages))
+            return None
+        action = "created" if created else "updated"
+        messages.info(request, f"Bill {action} from the treatment: Rs. {invoice.total:,.2f}. Open it to add shop items and issue it.")
+        return invoice
 
     @staticmethod
     def all_valid(forms):
@@ -319,6 +356,7 @@ class ConsultationView(AppointmentPage, TemplateView):
             visit_date_iso=visit.visit_date.isoformat(),
             invoices=visit.invoices.order_by("-created_at") if user.has_perm("billing.view_invoice") else None,
             can_bill=user.has_perm("billing.add_invoice") or user.has_perm("billing.view_invoice"),
+            can_create_bill=user.has_perm("billing.add_invoice"),
             back_url=safe_next(self.request, queue_url(visit.visit_date)),
         )
         return context

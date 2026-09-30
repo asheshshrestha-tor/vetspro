@@ -132,4 +132,57 @@
       });
     }
   });
+
+  // Treatment: picking from the catalogue fills in the usual details and price, and the
+  // line amounts and total update as quantities and prices change.
+  var treatmentTable = document.querySelector("[data-treatment-table]");
+  if (treatmentTable) {
+    var rupees = function (value) {
+      return "Rs. " + value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
+    var numberIn = function (input) {
+      var value = parseFloat(input && input.value);
+      return isNaN(value) ? 0 : value;
+    };
+    var totalCell = treatmentTable.querySelector("[data-treatment-total]");
+
+    var recalcTreatment = function () {
+      var total = 0;
+      treatmentTable.querySelectorAll("tr[data-treatment-line]").forEach(function (row) {
+        var removed = row.querySelector('input[name$="-DELETE"]');
+        var qty = numberIn(row.querySelector('input[name$="-quantity"]'));
+        var price = numberIn(row.querySelector('input[name$="-unit_price"]'));
+        var amount = removed && removed.checked ? 0 : qty * price;
+        total += amount;
+        var cell = row.querySelector("[data-line-total]");
+        if (cell) cell.textContent = amount ? rupees(amount) : "";
+      });
+      if (totalCell) totalCell.textContent = rupees(total);
+    };
+
+    var fill = function (row, name, value, overwrite) {
+      var field = row.querySelector('[name$="-' + name + '"]');
+      if (field && value !== undefined && value !== null && (overwrite || !field.value)) field.value = value;
+    };
+
+    if (window.jQuery) {
+      jQuery(treatmentTable).on("select2:select", 'select[name$="-item"]', function (event) {
+        var data = event.params && event.params.data;
+        var row = this.closest("tr[data-treatment-line]");
+        if (!row || !data) return;
+        fill(row, "name", data.name, true);
+        fill(row, "kind", data.kind, true);
+        fill(row, "dose", data.dose, true);
+        fill(row, "route", data.route, true);
+        fill(row, "frequency", data.frequency, true);
+        fill(row, "duration", data.duration, true);
+        fill(row, "unit_price", parseFloat(data.price) ? data.price : "", true);
+        fill(row, "quantity", "1", false);
+        recalcTreatment();
+      });
+    }
+    treatmentTable.addEventListener("input", recalcTreatment);
+    treatmentTable.addEventListener("change", recalcTreatment);
+    recalcTreatment();
+  }
 })();

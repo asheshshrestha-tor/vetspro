@@ -3,8 +3,8 @@ from django.urls import path, reverse
 from apps.dashboard.registry import Action, Badge, Module, site
 
 from . import views
-from .forms import PRODUCT_FIELDS, ProductForm
-from .models import Product, ProductCategory, StockMovement, change_stock
+from .forms import PRODUCT_FIELDS, TREATMENT_FIELDS, ProductForm, TreatmentItemForm
+from .models import Product, ProductCategory, StockMovement, TreatmentItem, change_stock
 
 
 def quantity(value):
@@ -132,3 +132,85 @@ class StockMovementModule(Module):
         return Badge(f"{obj.quantity.normalize():+f}", "success" if obj.quantity > 0 else "danger")
 
     change.short_description = "Change"
+
+
+@site.register(TreatmentItem)
+class TreatmentItemModule(Module):
+    group = "Clinic setup"
+    icon = "ki-capsule"
+    name = "treatment item"
+    name_plural = "treatment catalogue"
+    description = (
+        "Medicines, procedures and advice vets pick in a visit's Treatment tab, with their usual dosing and price. "
+        "Medicines here are the same items as in the shop, so they share one price and one stock count."
+    )
+    menu_order = 5
+    show_on_home = False
+
+    list_display = ["name", "kind", "charge", "usual_dosing", "stock", "is_active"]
+    search_fields = ["name", "brand", "description"]
+    list_filter = ["treatment_kind", "is_active"]
+    toggle_fields = ["is_active"]
+    form_class = TreatmentItemForm
+    fields = TREATMENT_FIELDS
+    per_page = 25
+
+    def get_queryset(self):
+        return TreatmentItem.objects.select_related("category").order_by("treatment_kind", "name")
+
+    def autocomplete_queryset(self, request):
+        return self.get_queryset().filter(is_active=True)
+
+    def autocomplete_label(self, obj):
+        label = f"{obj.name} · {obj.get_treatment_kind_display()}"
+        if obj.price:
+            label += f" · Rs. {obj.price:,.2f}"
+        if obj.track_stock:
+            label += f" · {quantity(obj.stock_quantity)} in stock"
+        return label
+
+    def autocomplete_data(self, obj):
+        from apps.appointments.models import Treatment
+
+        return {
+            "name": obj.name,
+            "kind": Treatment.KIND_FROM_CATALOGUE.get(obj.treatment_kind, "medication"),
+            "price": str(obj.price),
+            "unit": obj.unit,
+            "dose": obj.default_dose,
+            "route": obj.default_route,
+            "frequency": obj.default_frequency,
+            "duration": obj.default_duration,
+        }
+
+    def after_save(self, request, obj, form, change):
+        opening = form.cleaned_data.get("opening_stock")
+        if not change and opening and obj.track_stock:
+            change_stock(obj, opening, StockMovement.OPENING, user=request.user)
+
+    def row_actions(self, obj, request):
+        if not obj.track_stock:
+            return []
+        return [Action("Stock", reverse("dashboard:product_stock", args=[obj.pk]), icon="ki-parcel", color="light-primary")]
+
+    def kind(self, obj):
+        colors = {Product.MEDICINE: "primary", Product.PROCEDURE: "info", Product.ADVICE: "success"}
+        return Badge(obj.get_treatment_kind_display(), colors.get(obj.treatment_kind, "secondary"))
+
+    kind.short_description = "Type"
+
+    def charge(self, obj):
+        return f"Rs. {obj.price:,.2f} / {obj.unit}" if obj.price else "No charge"
+
+    charge.short_description = "Price"
+
+    def usual_dosing(self, obj):
+        return " · ".join(part for part in [obj.default_dose, obj.default_route, obj.default_frequency, obj.default_duration] if part)
+
+    usual_dosing.short_description = "Usual dose"
+
+    def stock(self, obj):
+        return ProductModule.stock(self, obj)
+
+    stock.short_description = "In stock"
+

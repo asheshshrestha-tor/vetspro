@@ -1,4 +1,5 @@
 import datetime
+from decimal import Decimal
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -365,6 +366,15 @@ class Treatment(models.Model):
     ]
 
     appointment = models.ForeignKey(Appointment, related_name="treatments", on_delete=models.CASCADE)
+    item = models.ForeignKey(
+        "shop.Product",
+        related_name="treatments",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="catalogue item",
+        help_text="Pick from the treatment catalogue to fill in the details and price.",
+    )
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default="medication")
     name = models.CharField("medicine / procedure", max_length=150)
     dose = models.CharField(max_length=60, blank=True)
@@ -372,9 +382,30 @@ class Treatment(models.Model):
     frequency = models.CharField(max_length=60, blank=True, help_text="e.g. twice a day")
     duration = models.CharField(max_length=60, blank=True, help_text="e.g. 5 days")
     notes = models.CharField(max_length=255, blank=True)
+    quantity = models.DecimalField("qty to bill", max_digits=10, decimal_places=2, default=1)
+    unit_price = models.DecimalField(
+        "price", max_digits=10, decimal_places=2, null=True, blank=True, help_text="Leave blank for no charge."
+    )
+
+    # Catalogue kinds map onto the kinds used here.
+    KIND_FROM_CATALOGUE = {"medicine": "medication", "procedure": "procedure", "advice": "advice"}
 
     class Meta:
         ordering = ["id"]
 
     def __str__(self):
         return self.name
+
+    @property
+    def amount(self):
+        if self.unit_price is None:
+            return None
+        return (self.quantity * self.unit_price).quantize(Decimal("0.01"))
+
+    @property
+    def is_billable(self):
+        return bool(self.unit_price) and self.quantity > 0
+
+    def bill_description(self):
+        details = " · ".join(part for part in [self.dose, self.route, self.frequency, self.duration] if part)
+        return f"{self.name} ({details})"[:200] if details else self.name

@@ -14,7 +14,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
             {"fields": ("about_heading", "about_text", "about_image", "philosophy_text", "philosophy_image")},
         ),
         ("Visit form", {"fields": ("consent_text",)}),
-        ("Invoices", {"fields": ("pan_number", "default_vat_percent", "invoice_footer")}),
+        ("Invoices", {"fields": ("pan_number", "default_vat_percent", "visit_fee_item", "invoice_footer")}),
     )
 
     def has_add_permission(self, request):

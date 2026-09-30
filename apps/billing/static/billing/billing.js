@@ -16,7 +16,8 @@
 
     // Line amounts and totals update as items are typed, so the bill can be read out before saving.
     var recalc = function () {
-      var subtotal = 0;
+      // Lines from the visit are fixed on this page; only the other items are edited here.
+      var subtotal = parseFloat(form.getAttribute("data-fixed-subtotal")) || 0;
       form.querySelectorAll("tr[data-invoice-line]").forEach(function (row) {
         var removed = row.querySelector('input[name$="-DELETE"]');
         var qty = number(row.querySelector('input[name$="-quantity"]'));

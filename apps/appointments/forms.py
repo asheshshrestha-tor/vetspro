@@ -195,7 +195,53 @@ class ClinicalForm(DashboardModelForm):
 class TreatmentForm(DashboardModelForm):
     class Meta:
         model = Treatment
-        fields = ["kind", "name", "dose", "route", "frequency", "duration", "notes"]
+        fields = ["item", "kind", "name", "dose", "route", "frequency", "duration", "quantity", "unit_price", "notes"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.shop.models import Product
+
+        item = self.fields["item"]
+        # Retired catalogue items stay selectable on treatments that already use them.
+        item.queryset = Product.objects.filter(is_active=True).exclude(treatment_kind="") | Product.objects.filter(
+            pk=self.instance.item_id
+        )
+        widget = AutocompleteSelect(
+            reverse("dashboard:autocomplete", args=["shop", "treatmentitem"]), placeholder="Search the treatment catalogue"
+        )
+        widget.choices = item.choices
+        widget.attrs["class"] = "form-select form-select-solid"
+        item.widget = widget
+        self.fields["name"].required = False
+        self.fields["name"].widget.attrs["placeholder"] = "Medicine / procedure (filled in from the catalogue)"
+        for name, hint in (("dose", "Dose"), ("route", "Route"), ("frequency", "Frequency"), ("duration", "Duration"),
+                           ("notes", "Notes")):
+            self.fields[name].widget.attrs["placeholder"] = hint
+        for name in ("quantity", "unit_price"):
+            self.fields[name].widget.attrs.update({"step": "any", "min": "0"})
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("DELETE"):
+            return cleaned
+        item = cleaned.get("item")
+        if item is not None:
+            if not cleaned.get("name"):
+                cleaned["name"] = item.name
+            if cleaned.get("unit_price") is None:
+                cleaned["unit_price"] = item.price or None
+        if not cleaned.get("name"):
+            self.add_error("name", "Choose from the catalogue or type the medicine or procedure.")
+        quantity = cleaned.get("quantity")
+        if quantity is not None and quantity <= 0:
+            self.add_error("quantity", "Must be more than zero.")
+        return cleaned
+
+    def _post_clean(self):
+        for name in ("name", "unit_price"):
+            if name in self.cleaned_data:
+                setattr(self.instance, name, self.cleaned_data[name])
+        super()._post_clean()
 
 
 TreatmentFormSet = inlineformset_factory(

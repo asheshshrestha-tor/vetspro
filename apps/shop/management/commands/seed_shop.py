@@ -68,6 +68,38 @@ PRODUCTS = {
     ],
 }
 
+# Treatment catalogue entries for sample items: (type, usual dose, route, frequency, duration).
+# Sample values only; vets must set the doses they actually use.
+TREATMENT_DEFAULTS = {
+    "Doxycycline 100 mg": ("medicine", "10 mg/kg", "Oral", "Once a day", "21 days"),
+    "Amoxicillin + clavulanate 250 mg": ("medicine", "12.5 mg/kg", "Oral", "Twice a day", "7 days"),
+    "Meloxicam oral suspension 10 ml": ("medicine", "0.1 mg/kg", "Oral", "Once a day", "5 days"),
+    "Ondansetron injection 2 mg/ml": ("medicine", "0.5 mg/kg", "IV", "Twice a day", "2 days"),
+    "Ringer's lactate 500 ml": ("medicine", "", "IV", "As needed", ""),
+    "Deworming tablet (praziquantel + pyrantel)": ("medicine", "1 tablet per 10 kg", "Oral", "Once", ""),
+    "Anti-tick spot-on, dogs 10-20 kg": ("medicine", "1 pipette", "Spot-on", "Monthly", ""),
+    "Ear cleaning solution 100 ml": ("medicine", "", "Topical", "Twice a week", ""),
+    "Multivitamin syrup 200 ml": ("medicine", "5 ml", "Oral", "Once a day", "30 days"),
+    "Probiotic paste 15 g": ("medicine", "1 g", "Oral", "Once a day", "5 days"),
+    "Consultation fee": ("procedure", "", "", "", ""),
+    "Emergency consultation (night)": ("procedure", "", "", "", ""),
+    "Follow-up consultation": ("procedure", "", "", "", ""),
+    "Rabies vaccination": ("procedure", "1 ml", "SC", "Once", ""),
+    "DHPPiL vaccination": ("procedure", "1 ml", "SC", "Once", ""),
+    "Deworming (in clinic)": ("procedure", "", "Oral", "Once", ""),
+    "IV fluid therapy, per day": ("procedure", "", "IV", "", ""),
+    "Wound dressing": ("procedure", "", "Topical", "", ""),
+    "Nail trimming": ("procedure", "", "", "", ""),
+    "Grooming bath, small dog": ("procedure", "", "", "", ""),
+}
+
+# Advice given at visits; recorded in the treatment, not charged.
+ADVICE = [
+    ("Diet advice", "Bland diet, small frequent meals, fresh water."),
+    ("Home care instructions", "Rest, keep the wound clean and dry, watch for vomiting or lethargy."),
+    ("Tick and flea prevention advice", "Monthly preventive, check coat and ears after walks."),
+]
+
 # Services: not counted, and not shown in the online shop.
 SERVICES = [
     ("Consultation fee", "500"),
@@ -137,6 +169,33 @@ class Command(BaseCommand):
                 },
             )
             added += created
+
+        for index, (name, description) in enumerate(ADVICE, start=1):
+            if services is None:
+                continue
+            _, created = Product.objects.get_or_create(
+                sku=f"{PREFIX}A{index:02d}",
+                defaults={
+                    "category": services, "name": name, "unit": "advice", "price": Decimal("0"),
+                    "track_stock": False, "show_online": False, "treatment_kind": Product.ADVICE,
+                    "description": description,
+                },
+            )
+            added += created
+
+        # Put sample medicines and services in the treatment catalogue, without overwriting any edits.
+        for product in Product.objects.filter(sku__startswith=PREFIX, name__in=TREATMENT_DEFAULTS):
+            kind, dose, route, frequency, duration = TREATMENT_DEFAULTS[product.name]
+            changed = False
+            for field, value in (
+                ("treatment_kind", kind), ("default_dose", dose), ("default_route", route),
+                ("default_frequency", frequency), ("default_duration", duration),
+            ):
+                if value and not getattr(product, field):
+                    setattr(product, field, value)
+                    changed = True
+            if changed:
+                product.save()
 
         total = Product.objects.filter(sku__startswith=PREFIX).count()
         self.stdout.write(self.style.SUCCESS(f"{added} sample product(s) added; {total} sample products in total."))

@@ -182,6 +182,19 @@ To try things out, `python manage.py seed_shop` loads 46 sample products and ser
 (SKUs starting `SAMPLE-`, made-up prices and stock). `python manage.py seed_shop --remove`
 deletes them again; any already sold are hidden instead, so past invoices stay intact.
 
+**Treatment catalogue** (Clinic setup > Treatment catalogue) lists the medicines,
+procedures and advice vets pick in a visit's Treatment tab, each with its price and usual
+dose, route, frequency and duration. Medicines in it are the same items as in the shop,
+so they share one price and one stock count. Advice is usually priced 0 (not charged).
+
+**Billing a visit:** in the Treatment tab, search the catalogue and the details and price
+fill in; set "Qty to bill" (e.g. 21 tablets). "Save and generate bill" builds the visit's
+bill from the treatment, and "Save and complete" does the same automatically when
+something is charged. An optional fixed fee for every visit (e.g. the consultation fee)
+is set in Website > Site settings > "Fee added to every visit bill". On the bill, lines
+from the visit are kept in step with the treatment ("Update from visit"); other items,
+such as food from the shop, are added below them. Once issued, a bill is not changed.
+
 **Selling:** every sale is an invoice.
 
 - *Counter sale:* Billing > New sale. Pick a client, type a name and phone, or leave both
@@ -193,7 +206,7 @@ Add items by searching products and services (their price fills in) or by typing
 description and price. A bill is a **draft** until you **issue** it: issuing takes the
 items out of stock (refusing if there isn't enough), gives the invoice its number and
 locks it. Take one or more payments (cash, card, eSewa, Khalti, Fonepay, bank) until it
-is **paid**. An issued invoice is never deleted; cancelling it puts its items back in
+is **paid**, or choose "Paid now by" when issuing to issue and take the full amount at once. An issued invoice is never deleted; cancelling it puts its items back in
 stock. Print the invoice from its page.
 
 Set the hospital's PAN/VAT number, default VAT rate and invoice footer under

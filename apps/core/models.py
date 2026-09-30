@@ -76,6 +76,15 @@ class SiteSettings(TimeStampedModel):
         "default VAT %", max_digits=5, decimal_places=2, default=0,
         help_text="Applied to new invoices; 0 if the hospital does not charge VAT.",
     )
+    visit_fee_item = models.ForeignKey(
+        "shop.Product",
+        related_name="+",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="fee added to every visit bill",
+        help_text="e.g. the consultation fee. Leave blank to add fees by hand.",
+    )
     invoice_footer = models.CharField(
         max_length=255, blank=True, default="Thank you for choosing us. Get well soon!",
         help_text="A short line printed at the bottom of every invoice.",
