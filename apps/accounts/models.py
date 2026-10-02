@@ -24,6 +24,18 @@ class StaffProfile(models.Model):
         help_text="Shown in the “Attended by” list on appointments. Untick for non-clinical staff.",
     )
 
+    branches = models.ManyToManyField(
+        "branches.Branch", related_name="staff", blank=True, help_text="Branches this person works at."
+    )
+    default_branch = models.ForeignKey(
+        "branches.Branch", related_name="+", on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Where they start after signing in.",
+    )
+    all_branches = models.BooleanField(
+        "all branches", default=False,
+        help_text="Can work in every branch, including ones added later. For owners and managers.",
+    )
+
     class Meta:
         verbose_name = "staff profile"
 

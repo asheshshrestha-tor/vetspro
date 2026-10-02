@@ -1,0 +1,52 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Sync prices{% endblock %}
+{% block heading %}Sync branch prices{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Shop" %}
+  {% include "dashboard/partials/crumb.html" with label="Branch prices" url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label="Sync" %}
+{% endblock %}
+
+{% block actions %}
+  <a href="{{ module.list_url }}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back to list</a>
+{% endblock %}
+
+{% block content %}
+  <div class="row g-5 g-xl-8">
+    <div class="col-xl-7">
+      <form method="post" novalidate class="card">
+        {% csrf_token %}
+        <div class="card-body p-9">
+          <p class="text-gray-600 fw-semibold mb-8">Every branch sells at the hospital price unless it has its own price. Use this to bring branches back in line in one step.</p>
+          {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+          <div class="mb-8">
+            {% for choice in form.action %}
+              <label class="d-flex align-items-center gap-3 mb-3 fw-semibold text-gray-800">{{ choice.tag }} {{ choice.choice_label }}</label>
+            {% endfor %}
+            {% for error in form.action.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
+          </div>
+          {% include "dashboard/partials/field.html" with field=form.branch %}
+          {% include "dashboard/partials/field.html" with field=form.source %}
+        </div>
+        <div class="card-footer py-5">
+          <button type="submit" class="btn btn-primary" onclick="return confirm('Change the prices now?')">Apply</button>
+        </div>
+      </form>
+    </div>
+    <div class="col-xl-5">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><h2 class="fs-4 fw-bold m-0">Own prices by branch</h2></div></div>
+        <div class="card-body pt-2">
+          {% for branch, count in counts %}
+            <div class="d-flex justify-content-between py-3 border-bottom border-gray-200">
+              <span class="fw-semibold text-gray-800">{{ branch }}</span>
+              <a href="{{ module.list_url }}?branch={{ branch.pk }}" class="fw-bold">{{ count }} own price{{ count|pluralize }}</a>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

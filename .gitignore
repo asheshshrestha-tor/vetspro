@@ -10,3 +10,4 @@ media/*
 .env
 .vscode/
 .idea/
+private_media/

@@ -15,7 +15,8 @@ RECEPTIONIST = "Receptionist"
 
 MANAGED_APPS = [
     "core", "services", "team", "pricing", "faq", "gallery", "testimonials", "contact",
-    "clinic_setup", "clients", "appointments", "accounts", "shop", "billing",
+    "clinic_setup", "clients", "appointments", "accounts", "shop", "billing", "branches",
+    "messaging", "reports", "activity",
 ]
 
 VIEW = ["view"]
@@ -29,6 +30,15 @@ SALES_MODELS = {
 }
 SALES_EXTRA = [("billing", "issue_invoice")]
 
+# Pet documents, templates and plans, and messages to owners: used by vets and reception alike.
+CLINIC_TEAM_MODELS = {
+    ("clients", "petdocument"): ["view", "add"],
+    ("clinic_setup", "treatmenttemplate"): VIEW,
+    ("clinic_setup", "vaccinationplan"): VIEW,
+    ("messaging", "outboundmessage"): ["view", "add"],
+    ("messaging", "messagetemplate"): VIEW,
+}
+
 # (app label, model name) -> actions, plus extra codenames per role.
 ROLE_PERMISSIONS = {
     VETERINARIAN: {
@@ -41,9 +51,12 @@ ROLE_PERMISSIONS = {
             ("clinic_setup", "vaccinationtype"): VIEW,
             ("clinic_setup", "examinationtype"): VIEW,
             ("shop", "treatmentitem"): VIEW,
+            ("reports", "report"): VIEW,
             **SALES_MODELS,
+            **CLINIC_TEAM_MODELS,
         },
         "extra": [
+            ("clients", "delete_petdocument"),
             ("appointments", "view_clinical"),
             ("appointments", "record_clinical"),
             ("appointments", "change_completed_appointment"),
@@ -56,6 +69,7 @@ ROLE_PERMISSIONS = {
             ("appointments", "appointment"): EDIT,
             ("clinic_setup", "species"): VIEW,
             **SALES_MODELS,
+            **CLINIC_TEAM_MODELS,
         },
         "extra": SALES_EXTRA + [("billing", "record_payment")],
     },

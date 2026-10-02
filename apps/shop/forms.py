@@ -1,11 +1,28 @@
 from django import forms
+from django.urls import reverse
 
-from apps.dashboard.forms import DashboardForm, DashboardModelForm
+from apps.dashboard.forms import AutocompleteSelect, DashboardForm, DashboardModelForm
 
-from .models import Product, ProductCategory, StockMovement, TreatmentItem
+from .models import BranchPrice, PackageItem, Product, ProductCategory, StockMovement, StockTransfer, StockTransferItem, TreatmentItem
+
+
+def product_search(field, placeholder, url_name="product"):
+    """A search-as-you-type box for choosing a product."""
+    widget = AutocompleteSelect(reverse("dashboard:autocomplete", args=["shop", url_name]), placeholder=placeholder)
+    widget.choices = field.choices
+    widget.attrs["class"] = "form-select form-select-solid"
+    field.widget = widget
+
+
+def allowed_branches_for(form):
+    """The branches the person filling the form works at, as a queryset for a choice field."""
+    from apps.branches.context import allowed_ids
+    from apps.branches.models import Branch
+
+    return Branch.objects.filter(pk__in=allowed_ids(form.request))
 
 PRODUCT_FIELDS = [
-    "category", "name", "brand", "sku", "unit", "price", "cost_price", "track_stock", "opening_stock",
+    "category", "name", "brand", "sku", "unit", "price", "cost_price", "is_package", "track_stock", "opening_stock",
     "low_stock_level", "treatment_kind", "default_dose", "default_route", "default_frequency", "default_duration",
     "is_prescription", "show_online", "description", "image", "is_active",
 ]
@@ -43,6 +60,20 @@ class ProductForm(DashboardModelForm):
         category = self.fields["category"]
         current = self.instance.category_id if self.instance.pk else None
         category.queryset = category.queryset.filter(is_active=True) | category.queryset.filter(pk=current)
+        if "opening_stock" in self.fields:
+            self.fields["opening_stock"].help_text += " It is added to the branch you are working in."
+        if "is_package" in self.fields:
+            self.fields["is_package"].help_text = (
+                "A bundle at one price. List what is in it below; selling it takes those items from stock."
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("is_package"):
+            # The contents are counted, not the package itself.
+            cleaned["track_stock"] = False
+            self.instance.track_stock = False
+        return cleaned
 
 
 class TreatmentItemForm(ProductForm):
@@ -68,6 +99,7 @@ class TreatmentItemForm(ProductForm):
 
     def clean(self):
         cleaned = super().clean()
+        cleaned["is_package"] = False
         kind = cleaned.get("treatment_kind")
         if kind and not cleaned.get("category"):
             name = CATEGORY_FOR_KIND[kind]
@@ -78,6 +110,81 @@ class TreatmentItemForm(ProductForm):
         return cleaned
 
 
+class PackageItemForm(DashboardModelForm):
+    class Meta:
+        model = PackageItem
+        fields = ["component", "quantity"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["component"]
+        field.queryset = Product.objects.filter(is_package=False)
+        product_search(field, "Search products")
+        self.fields["quantity"].widget.attrs.update({"step": "any", "min": "0"})
+
+    def clean_quantity(self):
+        value = self.cleaned_data["quantity"]
+        if value is not None and value <= 0:
+            raise forms.ValidationError("Must be more than zero.")
+        return value
+
+
+class BranchPriceForm(DashboardModelForm):
+    class Meta:
+        model = BranchPrice
+        fields = ["product", "branch", "price"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.branches.context import current_branch
+
+        self.fields["branch"].queryset = allowed_branches_for(self)
+        if not self.instance.pk:
+            self.fields["branch"].initial = getattr(current_branch(self.request), "pk", None)
+        product = self.fields["product"]
+        product.queryset = Product.objects.filter(is_active=True) | Product.objects.filter(pk=self.instance.product_id)
+        product_search(product, "Search products and services")
+        self.fields["price"].help_text = "What this branch charges. Delete the row to go back to the hospital price."
+
+
+class StockTransferForm(DashboardModelForm):
+    class Meta:
+        model = StockTransfer
+        fields = ["from_branch", "to_branch", "note"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.branches.context import current_branch
+        from apps.branches.models import Branch
+
+        # Stock is sent from a branch you work at, to any open branch.
+        self.fields["from_branch"].queryset = allowed_branches_for(self)
+        self.fields["to_branch"].queryset = Branch.objects.filter(is_active=True)
+        if not self.instance.pk:
+            self.fields["from_branch"].initial = getattr(current_branch(self.request), "pk", None)
+
+
+class StockTransferItemForm(DashboardModelForm):
+    class Meta:
+        model = StockTransferItem
+        fields = ["product", "quantity"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        field = self.fields["product"]
+        field.queryset = Product.objects.filter(track_stock=True, is_active=True) | Product.objects.filter(
+            pk=self.instance.product_id
+        )
+        product_search(field, "Search stocked products")
+        self.fields["quantity"].widget.attrs.update({"step": "any", "min": "0"})
+
+    def clean_quantity(self):
+        value = self.cleaned_data["quantity"]
+        if value is not None and value <= 0:
+            raise forms.ValidationError("Must be more than zero.")
+        return value
+
+
 class StockChangeForm(DashboardForm):
     reason = forms.ChoiceField(choices=StockMovement.MANUAL_REASONS)
     quantity = forms.DecimalField(min_value=0, max_digits=10, decimal_places=2)
@@ -86,8 +193,9 @@ class StockChangeForm(DashboardForm):
     ADD = {StockMovement.PURCHASE, StockMovement.RETURN}
     REMOVE = {StockMovement.DAMAGED}
 
-    def __init__(self, *args, product, **kwargs):
+    def __init__(self, *args, product, current, **kwargs):
         self.product = product
+        self.current = current  # stock at the branch being changed
         super().__init__(*args, **kwargs)
         self.fields["quantity"].help_text = (
             "For a stock count correction, enter the number you counted; otherwise the number received or removed."
@@ -100,7 +208,7 @@ class StockChangeForm(DashboardForm):
             return quantity
         if reason in self.REMOVE:
             return -quantity
-        return quantity - self.product.stock_quantity
+        return quantity - self.current
 
     def clean(self):
         cleaned = super().clean()
@@ -108,9 +216,40 @@ class StockChangeForm(DashboardForm):
             change = self.change()
             if change == 0:
                 raise forms.ValidationError("That does not change the stock.")
-            if self.product.stock_quantity + change < 0:
-                raise forms.ValidationError(
-                    f"Only {self.product.stock_quantity.normalize():f} {self.product.unit} in stock."
-                )
+            if self.current + change < 0:
+                raise forms.ValidationError(f"Only {self.current.normalize():f} {self.product.unit} in stock.")
         return cleaned
 
+
+
+class PriceSyncForm(DashboardForm):
+    RESET = "reset"
+    COPY = "copy"
+    PROMOTE = "promote"
+    ACTIONS = [
+        (RESET, "Reset a branch to the hospital prices"),
+        (COPY, "Copy one branch's prices to another branch"),
+        (PROMOTE, "Make a branch's prices the hospital prices"),
+    ]
+
+    action = forms.ChoiceField(choices=ACTIONS, widget=forms.RadioSelect)
+    branch = forms.ModelChoiceField(queryset=None, label="Branch to change", help_text="For “Make hospital prices”, the branch whose prices are used.")
+    source = forms.ModelChoiceField(queryset=None, required=False, label="Copy from", help_text="Only for copying.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.branches.models import Branch
+
+        self.fields["branch"].queryset = allowed_branches_for(self)
+        self.fields["source"].queryset = Branch.objects.filter(is_active=True)
+        self.fields["action"].widget.attrs["class"] = "form-check-input"
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("action") == self.COPY:
+            source = cleaned.get("source")
+            if source is None:
+                self.add_error("source", "Choose the branch to copy from.")
+            elif source == cleaned.get("branch"):
+                self.add_error("source", "Choose a different branch to copy from.")
+        return cleaned

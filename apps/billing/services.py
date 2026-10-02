@@ -1,13 +1,12 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from apps.core.models import SiteSettings
-
 from .models import Invoice, InvoiceItem
 
 
-def new_invoice(user, **fields):
-    return Invoice.objects.create(vat_percent=SiteSettings.load().default_vat_percent, created_by=user, **fields)
+def new_invoice(user, branch, **fields):
+    """A draft bill at the branch, with the branch's VAT rate."""
+    return Invoice.objects.create(branch=branch, vat_percent=branch.effective_vat_percent, created_by=user, **fields)
 
 
 def current_visit_bill(visit):
@@ -32,13 +31,13 @@ def build_visit_bill(visit, user):
     with transaction.atomic():
         created = invoice is None
         if created:
-            invoice = new_invoice(user, client=visit.client, appointment=visit)
+            invoice = new_invoice(user, visit.branch, client=visit.client, appointment=visit)
         invoice.items.exclude(source=InvoiceItem.MANUAL).delete()
 
-        fee = SiteSettings.load().visit_fee_item
+        fee = invoice.branch.effective_visit_fee_item
         if fee is not None and fee.is_active:
             InvoiceItem.objects.create(
-                invoice=invoice, product=fee, description=fee.name, quantity=1, unit_price=fee.price,
+                invoice=invoice, product=fee, description=fee.name, quantity=1, unit_price=fee.price_at(invoice.branch),
                 source=InvoiceItem.VISIT_FEE,
             )
 

@@ -16,6 +16,13 @@ class ContactView(FormView):
     form_class = ContactForm
     success_url = reverse_lazy("contact:contact")
 
+    def get_initial(self):
+        initial = super().get_initial()
+        branch = self.request.GET.get("branch", "")
+        if branch.isdigit():
+            initial["branch"] = int(branch)
+        return initial
+
     def form_valid(self, form):
         # Bots get the same success response, but nothing is stored.
         if not form.is_spam:
@@ -30,7 +37,11 @@ class ContactView(FormView):
         try:
             send_mail(
                 subject=f"Website message from {message.name}",
-                message=f"From: {message.name} <{message.email}>\nPhone: {message.phone}\n\n{message.message}",
+                message=(
+                    f"From: {message.name} <{message.email}>\nPhone: {message.phone}\n"
+                    + (f"Branch: {message.branch}\n" if message.branch_id else "")
+                    + f"\n{message.message}"
+                ),
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[settings.CONTACT_NOTIFY_EMAIL],
             )

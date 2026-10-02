@@ -1,9 +1,10 @@
 from django import forms
+from django.conf import settings
 
 from apps.clinic_setup.models import Species
 from apps.dashboard.forms import DashboardModelForm
 
-from .models import Client, Pet
+from .models import DOCUMENT_EXTENSIONS, Client, Pet, PetDocument
 
 
 def limit_species(form):
@@ -56,3 +57,24 @@ class PetInlineForm(DashboardModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         limit_species(self)
+
+
+class PetDocumentForm(DashboardModelForm):
+    class Meta:
+        model = PetDocument
+        fields = ["file", "kind", "title", "note"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["file"].widget = forms.ClearableFileInput(attrs={"class": "form-control form-control-solid"})
+        self.fields["file"].help_text = f"PDF, image or office file, up to {settings.DOCUMENT_MAX_MB} MB."
+
+    def clean_file(self):
+        upload = self.cleaned_data["file"]
+        extension = upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
+        if extension not in DOCUMENT_EXTENSIONS:
+            raise forms.ValidationError("This type of file cannot be added. Use a PDF, an image or an office document.")
+        if upload.size > settings.DOCUMENT_MAX_MB * 1024 * 1024:
+            raise forms.ValidationError(f"The file is larger than {settings.DOCUMENT_MAX_MB} MB.")
+        return upload
+

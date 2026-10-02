@@ -32,8 +32,14 @@
             <i class="fa-solid fa-circle" aria-hidden="true"></i>
             {% if product.is_out_of_stock %}Out of stock. Call us to check when it is back.
             {% elif product.is_low_stock %}Only {{ product.stock_quantity|floatformat:"-2" }} left in stock
-            {% else %}In stock at the hospital{% endif %}
+            {% else %}In stock{% if branch_stock|length < 2 %} at the hospital{% endif %}{% endif %}
           </p>
+          {% if branch_stock|length > 1 and product.track_stock %}
+            <ul class="p-branches" aria-label="Availability by branch">
+              {% for row in branch_stock %}<li {% if not row.available %}class="is-out"{% endif %}>{{ row.branch.name }}{% if not row.available %} (out){% endif %}</li>{% endfor %}
+            </ul>
+          {% endif %}
+          {% if price_varies %}<p class="p-note-small">Prices can differ slightly between branches.</p>{% endif %}
 
           {% if product.is_prescription %}
             <div class="p-note"><i class="fa-solid fa-user-doctor" aria-hidden="true"></i> Prescription medicine: sold after one of our vets has examined your pet or advised it.</div>

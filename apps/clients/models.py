@@ -1,9 +1,12 @@
 import datetime
+import os
 import re
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.storage import FileSystemStorage
 from django.db import models
+from django.utils.deconstruct import deconstructible
 from django.urls import reverse
 from django.utils import timezone
 
@@ -139,3 +142,104 @@ class Pet(TimeStampedModel):
         year, month = divmod(today.year * 12 + today.month - 1 - total, 12)
         day = min(today.day, 28)
         return datetime.date(year, month + 1, day)
+
+
+@deconstructible
+class PrivateStorage(FileSystemStorage):
+    """Files kept outside the public media folder; the dashboard sends them after checking access.
+
+    The folder is read from settings each time, so it follows PRIVATE_MEDIA_ROOT wherever it is set.
+    """
+
+    @property
+    def base_location(self):
+        return str(settings.PRIVATE_MEDIA_ROOT)
+
+    @property
+    def location(self):
+        return os.path.abspath(self.base_location)
+
+    def url(self, name):
+        raise ValueError("Private files have no public address; use the dashboard's document link.")
+
+
+private_storage = PrivateStorage()
+
+DOCUMENT_EXTENSIONS = {
+    "pdf", "jpg", "jpeg", "png", "webp", "gif", "heic", "bmp", "tif", "tiff", "dcm",
+    "doc", "docx", "xls", "xlsx", "csv", "txt", "rtf", "odt",
+}
+
+
+def document_path(instance, filename):
+    return f"pets/{instance.pet_id}/{timezone.now():%Y/%m}/{filename}"
+
+
+class PetDocument(models.Model):
+    """A file in the pet's medical record: lab report, X-ray, photo, referral, consent form…"""
+
+    LAB = "lab"
+    IMAGING = "imaging"
+    PHOTO = "photo"
+    PRESCRIPTION = "prescription"
+    CONSENT = "consent"
+    REFERRAL = "referral"
+    OTHER = "other"
+    KINDS = [
+        (LAB, "Lab report"),
+        (IMAGING, "X-ray / ultrasound"),
+        (PHOTO, "Photo"),
+        (PRESCRIPTION, "Prescription"),
+        (CONSENT, "Consent form"),
+        (REFERRAL, "Referral / letter"),
+        (OTHER, "Other"),
+    ]
+    KIND_ICONS = {
+        LAB: "ki-test-tubes", IMAGING: "ki-scan-barcode", PHOTO: "ki-picture", PRESCRIPTION: "ki-capsule",
+        CONSENT: "ki-document", REFERRAL: "ki-sms", OTHER: "ki-file",
+    }
+
+    pet = models.ForeignKey(Pet, related_name="documents", on_delete=models.CASCADE)
+    appointment = models.ForeignKey(
+        "appointments.Appointment", related_name="documents", on_delete=models.SET_NULL, null=True, blank=True,
+        verbose_name="visit",
+    )
+    kind = models.CharField("type", max_length=15, choices=KINDS, default=OTHER)
+    title = models.CharField(max_length=150, blank=True, help_text="e.g. CBC 12 May, chest X-ray. Left blank, the file name is used.")
+    file = models.FileField(upload_to=document_path, storage=private_storage, max_length=255)
+    note = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at", "-id"]
+        verbose_name = "pet document"
+
+    def __str__(self):
+        return self.title or self.filename
+
+    @property
+    def filename(self):
+        return self.file.name.rsplit("/", 1)[-1]
+
+    @property
+    def extension(self):
+        return self.filename.rsplit(".", 1)[-1].lower() if "." in self.filename else ""
+
+    @property
+    def is_image(self):
+        return self.extension in {"jpg", "jpeg", "png", "webp", "gif", "bmp"}
+
+    @property
+    def icon(self):
+        return self.KIND_ICONS.get(self.kind, "ki-file")
+
+    def get_absolute_url(self):
+        return reverse("dashboard:pet_document", args=[self.pet_id, self.pk])
+
+    def delete(self, *args, **kwargs):
+        storage, name = self.file.storage, self.file.name
+        super().delete(*args, **kwargs)
+        if name:
+            storage.delete(name)
+

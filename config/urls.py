@@ -20,6 +20,7 @@ urlpatterns = [
     path("gallery/", include("apps.gallery.urls")),
     path("contact/", include("apps.contact.urls")),
     path("shop/", include("apps.shop.urls")),
+    path("branches/", include("apps.branches.urls")),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
     path("", include("apps.core.urls")),
 ]

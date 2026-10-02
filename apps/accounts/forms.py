@@ -24,6 +24,15 @@ class StaffUserForm(DashboardModelForm):
         initial=True,
         help_text="Shown in the “Attended by” list on appointments. Untick for non-clinical staff.",
     )
+    branches = forms.ModelMultipleChoiceField(
+        queryset=None, required=False, widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
+        help_text="The branches this person works at.",
+    )
+    default_branch = forms.ModelChoiceField(queryset=None, required=False, help_text="Where they start after signing in.")
+    all_branches = forms.BooleanField(
+        label="All branches", required=False,
+        help_text="Works in every branch, including ones added later. For owners and managers.",
+    )
     password1 = forms.CharField(label="Password", required=False, strip=False, widget=forms.PasswordInput(render_value=False))
     password2 = forms.CharField(label="Confirm password", required=False, strip=False, widget=forms.PasswordInput(render_value=False))
 
@@ -34,12 +43,26 @@ class StaffUserForm(DashboardModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from apps.branches.models import Branch
+
+        branches = Branch.objects.filter(is_active=True)
+        self.fields["branches"].queryset = branches
+        self.fields["default_branch"].queryset = branches
+        # With one branch there is nothing to choose: everyone works there.
+        self.only_branch = branches.first() if branches.count() == 1 else None
+        if self.only_branch:
+            for name in ("branches", "default_branch", "all_branches"):
+                del self.fields[name]
         self.fields["first_name"].required = True
         if self.instance.pk:
             profile, _ = StaffProfile.objects.get_or_create(user=self.instance)
             self.fields["role"].initial = profile.role_id
             for name in PROFILE_FIELDS:
                 self.fields[name].initial = getattr(profile, name)
+            if not self.only_branch:
+                self.fields["branches"].initial = list(profile.branches.values_list("pk", flat=True))
+                self.fields["default_branch"].initial = profile.default_branch_id
+                self.fields["all_branches"].initial = profile.all_branches
             self.fields["password1"].help_text = "Leave blank to keep the current password."
         else:
             self.fields["password1"].required = True
@@ -54,6 +77,14 @@ class StaffUserForm(DashboardModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        branches = list(cleaned.get("branches") or [])
+        default = cleaned.get("default_branch")
+        if self.only_branch:
+            pass
+        elif not branches and not cleaned.get("all_branches"):
+            self.add_error("branches", "Choose at least one branch, or tick “All branches”.")
+        elif default is not None and branches and default not in branches and not cleaned.get("all_branches"):
+            self.add_error("default_branch", "The default branch must be one of their branches.")
         password1, password2 = cleaned.get("password1"), cleaned.get("password2")
         if password1 or password2:
             if password1 != password2:
@@ -83,7 +114,15 @@ class StaffUserForm(DashboardModelForm):
         profile.role = role
         for name in PROFILE_FIELDS:
             setattr(profile, name, self.cleaned_data.get(name))
+        if self.only_branch:
+            branches = [self.only_branch]
+            profile.default_branch = self.only_branch
+        else:
+            branches = list(self.cleaned_data.get("branches") or [])
+            profile.all_branches = bool(self.cleaned_data.get("all_branches"))
+            profile.default_branch = self.cleaned_data.get("default_branch") or (branches[0] if branches else None)
         profile.save()
+        profile.branches.set(branches)
         # A person has exactly one role.
         user.groups.set([role])
 

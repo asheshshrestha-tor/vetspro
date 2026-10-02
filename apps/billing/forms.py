@@ -75,7 +75,7 @@ class InvoiceForm(CustomerFields, DashboardModelForm):
 class InvoiceItemForm(DashboardModelForm):
     class Meta:
         model = InvoiceItem
-        fields = ["product", "description", "quantity", "unit_price"]
+        fields = ["product", "description", "quantity", "unit_price", "discount_percent"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -88,6 +88,8 @@ class InvoiceItemForm(DashboardModelForm):
         self.fields["unit_price"].required = False
         self.fields["quantity"].widget.attrs.update({"step": "any", "min": "0"})
         self.fields["unit_price"].widget.attrs.update({"step": "any", "min": "0"})
+        self.fields["discount_percent"].required = False
+        self.fields["discount_percent"].widget.attrs.update({"step": "any", "min": "0", "max": "100", "placeholder": "0"})
         style_fields(self)
 
     def clean(self):
@@ -99,7 +101,8 @@ class InvoiceItemForm(DashboardModelForm):
             if not cleaned.get("description"):
                 cleaned["description"] = product.name
             if cleaned.get("unit_price") is None:
-                cleaned["unit_price"] = product.price
+                branch = getattr(self.instance.invoice, "branch", None) if self.instance.invoice_id else None
+                cleaned["unit_price"] = product.price_at(branch)
         else:
             if not cleaned.get("description"):
                 self.add_error("description", "Choose a product or describe the item.")
@@ -110,11 +113,16 @@ class InvoiceItemForm(DashboardModelForm):
             self.add_error("quantity", "Must be more than zero.")
         if cleaned.get("unit_price") is not None and cleaned["unit_price"] < 0:
             self.add_error("unit_price", "Cannot be negative.")
+        discount = cleaned.get("discount_percent")
+        if discount is None:
+            cleaned["discount_percent"] = 0
+        elif not 0 <= discount <= 100:
+            self.add_error("discount_percent", "Between 0 and 100.")
         return cleaned
 
     def _post_clean(self):
         # Fill the model from the defaults worked out in clean() before it is validated.
-        for name in ("description", "unit_price"):
+        for name in ("description", "unit_price", "discount_percent"):
             if name in self.cleaned_data:
                 setattr(self.instance, name, self.cleaned_data[name])
         super()._post_clean()

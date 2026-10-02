@@ -49,7 +49,7 @@ class ClientModule(PhoneSearchMixin, Module):
     def autocomplete_queryset(self, request):
         return super().autocomplete_queryset(request).prefetch_related("pets")
 
-    def autocomplete_label(self, obj):
+    def autocomplete_label(self, obj, request=None):
         label = f"{obj.full_name} · {obj.phone}" + (f" · {obj.area}" if obj.area else "")
         pets = [pet.name for pet in obj.pets.all() if pet.is_active and not pet.is_deceased]
         return f"{label} — pets: {', '.join(pets)}" if pets else label
@@ -89,12 +89,18 @@ class PetModule(PhoneSearchMixin, Module):
     def autocomplete_queryset(self, request):
         return self.get_queryset().filter(is_active=True, is_deceased=False)
 
-    def autocomplete_label(self, obj):
+    def autocomplete_label(self, obj, request=None):
         details = ", ".join(part for part in [str(obj.species), obj.breed, obj.age_display] if part)
         return f"{obj.name} ({details})"
 
     def get_urls(self):
-        return [path("<int:pk>/record/", views.PetRecordView.as_view(), name="pet_record")]
+        return [
+            path("<int:pk>/record/", views.PetRecordView.as_view(), name="pet_record"),
+            path("<int:pk>/documents/add/", views.DocumentUploadView.as_view(), name="pet_document_add"),
+            path("<int:pk>/vaccination-plan/", views.PetPlanView.as_view(), name="pet_plan"),
+            path("<int:pk>/documents/<int:document_pk>/", views.DocumentFileView.as_view(), name="pet_document"),
+            path("<int:pk>/documents/<int:document_pk>/delete/", views.DocumentDeleteView.as_view(), name="pet_document_delete"),
+        ]
 
     def row_actions(self, obj, request):
         return [Action("Record", reverse("dashboard:pet_record", args=[obj.pk]), icon="ki-document", color="light-primary")]

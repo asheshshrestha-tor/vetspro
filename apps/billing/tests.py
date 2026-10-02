@@ -239,6 +239,7 @@ class ShopPageTests(ShopTestCase):
             "category": self.food.pk, "name": "Cat food 1 kg", "brand": "Whiskas", "sku": "", "unit": "bag",
             "price": "950", "cost_price": "700", "track_stock": "on", "opening_stock": "12", "low_stock_level": "3",
             "show_online": "on", "description": "", "is_active": "on",
+            "inline0-TOTAL_FORMS": "0", "inline0-INITIAL_FORMS": "0",
         })
         self.assertEqual(response.status_code, 302)
         product = Product.objects.get(name="Cat food 1 kg")

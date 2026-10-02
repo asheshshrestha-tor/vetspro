@@ -186,3 +186,15 @@
     recalcTreatment();
   }
 })();
+
+// Treatment templates: the chosen template is sent with the visit form, which is saved first.
+(function () {
+  "use strict";
+  var select = document.querySelector("[data-template-select]");
+  var button = document.querySelector("[data-template-apply]");
+  if (!select || !button) return;
+  select.addEventListener("change", function () {
+    button.value = select.value;
+    button.disabled = !select.value;
+  });
+})();

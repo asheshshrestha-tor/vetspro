@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth import get_user_model
 from django.forms import inlineformset_factory
 from django.urls import reverse
 from django.utils import timezone
@@ -10,6 +11,7 @@ from apps.dashboard.forms import (
     DashboardForm,
     DashboardModelForm,
     DateInput,
+    TimeInput,
     formfield_callback,
     style_fields,
 )
@@ -24,12 +26,15 @@ class StaffChoiceField(forms.ModelChoiceField):
         return f"{name} · {profile.designation}" if profile and profile.designation else name
 
 
-def staff_queryset(current=None):
-    """Staff who can attend, plus whoever already attends this visit (they may have left since)."""
-    queryset = attending_staff()
+def staff_queryset(current=None, branch=None):
+    """Staff who can attend at the branch, plus whoever already attends this visit (they may have left since)."""
+    ids = list(attending_staff(branch).values_list("pk", flat=True))
     if current is not None:
-        queryset = queryset | type(current).objects.filter(pk=current.pk)
-    return queryset.distinct().select_related("staff_profile")
+        ids.append(current.pk)
+    return (
+        get_user_model().objects.filter(pk__in=ids)
+        .select_related("staff_profile").order_by("first_name", "last_name", "username")
+    )
 
 
 def active_or_current(queryset, current_ids):
@@ -60,11 +65,19 @@ class WalkInForm(DashboardForm):
     new_pet_color = forms.CharField(label="Colour and markings", max_length=100, required=False)
 
     visit_date = forms.DateField(widget=DateInput, initial=timezone.localdate)
+    scheduled_time = forms.TimeField(
+        label="Booked time", required=False, widget=TimeInput,
+        help_text="For a visit booked on a later date. Walk-ins today join the queue by token.",
+    )
+    priority = forms.ChoiceField(
+        label="Triage", choices=Appointment.PRIORITY_CHOICES, initial=Appointment.ROUTINE, required=False,
+        help_text="Emergency and urgent cases go to the top of the queue.",
+    )
     reason = forms.CharField(label="Reason for visit", max_length=255)
     attended_by = StaffChoiceField(queryset=attending_staff(), required=False)
     weight_kg = forms.DecimalField(label="Body weight (kg)", max_digits=6, decimal_places=2, min_value=0, required=False)
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, branch=None, **kwargs):
         super().__init__(*args, **kwargs)
         widgets = {
             "client": AutocompleteSelect(
@@ -81,7 +94,7 @@ class WalkInForm(DashboardForm):
             widget.choices = field.choices
             widget.attrs["class"] = "form-select form-select-solid"
             field.widget = widget
-        self.fields["attended_by"].queryset = staff_queryset()
+        self.fields["attended_by"].queryset = staff_queryset(branch=branch)
         self.duplicates = Client.objects.none()
 
     def clean_visit_date(self):
@@ -162,15 +175,21 @@ class VisitForm(DashboardModelForm):
 
     class Meta:
         model = Appointment
-        fields = ["visit_date", "reason", "attended_by", "weight_kg"]
-        widgets = {"visit_date": DateInput}
+        fields = ["visit_date", "scheduled_time", "priority", "reason", "attended_by", "weight_kg"]
+        widgets = {"visit_date": DateInput, "scheduled_time": TimeInput}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["attended_by"].queryset = staff_queryset(self.instance.attended_by)
-        # Only a scheduled follow-up can move to another day; a visit that has arrived stays on its day.
+        self.fields["attended_by"].queryset = staff_queryset(self.instance.attended_by, self.instance.branch)
+        # Only a booked visit can move to another day or time; a visit that has arrived stays on its day.
         if self.instance.status != Appointment.SCHEDULED:
             del self.fields["visit_date"]
+            del self.fields["scheduled_time"]
+        self.fields["priority"].required = False
+
+    def clean_priority(self):
+        # A form without the triage choice keeps the visit's current triage.
+        return self.cleaned_data.get("priority") or self.instance.priority or Appointment.ROUTINE
 
     def clean_visit_date(self):
         visit_date = self.cleaned_data["visit_date"]

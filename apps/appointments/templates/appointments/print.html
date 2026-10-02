@@ -81,7 +81,7 @@
     </div>
 
     {% if history %}
-      <h2>History</h2>
+      <h2>S · History</h2>
       <table>
         <tbody>
           {% for entry in history %}<tr><td><strong>{{ entry.option }}</strong></td><td{% if entry.is_abnormal %} class="flag"{% endif %}>{{ entry.value }}</td></tr>{% endfor %}
@@ -90,7 +90,7 @@
     {% endif %}
 
     {% if examinations %}
-      <h2>Clinical examination</h2>
+      <h2>O · Clinical examination</h2>
       <table>
         <thead><tr><th>Examination</th><th>Result</th><th>Normal</th></tr></thead>
         <tbody>
@@ -106,13 +106,13 @@
     {% endif %}
 
     {% if visit.clinical_notes or visit.diagnosis %}
-      <h2>Findings</h2>
+      <h2>A · Assessment</h2>
       {% if visit.clinical_notes %}<p class="pre">{{ visit.clinical_notes }}</p>{% endif %}
       {% if visit.diagnosis %}<p><strong>Diagnosis:</strong> <span class="pre">{{ visit.diagnosis }}</span></p>{% endif %}
     {% endif %}
 
     {% if treatments %}
-      <h2>Treatment</h2>
+      <h2>P · Plan (treatment)</h2>
       <table>
         <thead><tr><th>Medicine / procedure</th><th>Dose</th><th>Route</th><th>Frequency</th><th>Duration</th></tr></thead>
         <tbody>

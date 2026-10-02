@@ -1,0 +1,59 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags %}
+
+{% block title %}Reminders{% endblock %}
+{% block heading %}Reminders{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Inbox" %}
+  {% include "dashboard/partials/crumb.html" with label="Reminders" %}
+{% endblock %}
+
+{% block actions %}
+  <form method="get" class="d-flex align-items-center gap-2">
+    <label for="reminder-days" class="text-gray-600 fw-semibold text-nowrap">Due within</label>
+    <select id="reminder-days" name="days" class="form-select form-select-sm form-select-solid w-auto" onchange="this.form.submit()">
+      {% for option in day_options %}<option value="{{ option }}" {% if option == days %}selected{% endif %}>{{ option }} days</option>{% endfor %}
+    </select>
+  </form>
+{% endblock %}
+
+{% block content %}
+  {% url 'dashboard:message_reminders' as here %}
+
+  <div class="card mb-5 mb-xl-8">
+    <div class="card-header pt-5">
+      <h2 class="card-title align-items-start flex-column">
+        <span class="card-label fw-bold text-gray-900 fs-3">Bookings today and tomorrow</span>
+        <span class="text-gray-500 mt-1 fw-semibold fs-6">Remind owners of their visit</span>
+      </h2>
+    </div>
+    <div class="card-body pt-2">
+      {% include "messaging/partials/reminder_rows.html" with rows=bookings kind="booking" %}
+    </div>
+  </div>
+
+  <div class="card mb-5 mb-xl-8">
+    <div class="card-header pt-5">
+      <h2 class="card-title align-items-start flex-column">
+        <span class="card-label fw-bold text-gray-900 fs-3">Vaccinations due</span>
+        <span class="text-gray-500 mt-1 fw-semibold fs-6">Boosters from past visits, including up to 30 days overdue</span>
+      </h2>
+    </div>
+    <div class="card-body pt-2">
+      {% include "messaging/partials/reminder_rows.html" with rows=vaccinations kind="vaccination" %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header pt-5">
+      <h2 class="card-title align-items-start flex-column">
+        <span class="card-label fw-bold text-gray-900 fs-3">Planned doses due</span>
+        <span class="text-gray-500 mt-1 fw-semibold fs-6">From pets' vaccination plans</span>
+      </h2>
+    </div>
+    <div class="card-body pt-2">
+      {% include "messaging/partials/reminder_rows.html" with rows=planned kind="planned" %}
+    </div>
+  </div>
+{% endblock %}

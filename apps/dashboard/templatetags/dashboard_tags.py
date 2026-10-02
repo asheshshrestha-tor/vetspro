@@ -15,7 +15,7 @@ def dashboard_menu(context):
     for title, modules in site.grouped(request.user).items():
         items = []
         for module in modules:
-            links = module.menu_items()
+            links = module.menu_items(request)
             # A page with its own menu link (e.g. today's queue) marks that link;
             # every other page of the module marks the module's main link.
             claimed = None
@@ -29,6 +29,26 @@ def dashboard_menu(context):
                 items.append({**link, "active": active})
         groups.append({"title": title, "items": items})
     return {"groups": groups, "is_home": match.url_name == "home"}
+
+
+@register.inclusion_tag("dashboard/partials/branch_switcher.html", takes_context=True)
+def branch_switcher(context):
+    from apps.branches.context import allowed_branches, current_branch
+
+    request = context["request"]
+    match = request.resolver_match
+    # A record page belongs to one branch; after switching, go back to its list instead.
+    next_url = request.get_full_path()
+    if match and match.url_name not in ("list", "home", "appointment_queue") and "app_label" in match.kwargs:
+        from django.urls import reverse
+
+        next_url = reverse("dashboard:list", args=[match.kwargs["app_label"], match.kwargs["model_name"]])
+    return {
+        "request": request,
+        "branches": allowed_branches(request),
+        "current": current_branch(request),
+        "next_url": next_url,
+    }
 
 
 @register.filter

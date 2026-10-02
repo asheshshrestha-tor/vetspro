@@ -263,3 +263,11 @@
 .treatment-lines input[name$="-quantity"],
 .treatment-lines input[name$="-unit_price"] { min-width: 90px; }
 @media (max-width: 767px) { .treatment-dosing { grid-template-columns: repeat(2, 1fr); } }
+
+/* Triage board and bookings week */
+.triage-column { max-height: 70vh; overflow-y: auto; }
+.booking-day { min-height: 140px; }
+.booking-day.is-today { outline: 2px solid var(--bs-primary); outline-offset: -2px; }
+
+/* SOAP letters on the consultation tabs */
+.soap-letter { display: inline-block; min-width: 1.6em; padding: 0 .35em; margin-right: .35em; border-radius: .4em; font-size: .75em; line-height: 1.6; text-align: center; background: var(--bs-primary-light); color: var(--bs-primary); }

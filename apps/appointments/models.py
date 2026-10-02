@@ -60,7 +60,22 @@ class Appointment(TimeStampedModel):
         "restore": ([CANCELLED], None),
     }
 
+    EMERGENCY = "emergency"
+    URGENT = "urgent"
+    ROUTINE = "routine"
+    PRIORITY_CHOICES = [(EMERGENCY, "Emergency"), (URGENT, "Urgent"), (ROUTINE, "Routine")]
+    PRIORITY_COLORS = {EMERGENCY: "danger", URGENT: "warning", ROUTINE: "success"}
+    PRIORITY_RANK = {EMERGENCY: 0, URGENT: 1, ROUTINE: 2}
+
     number = models.CharField("appointment no.", max_length=20, unique=True, editable=False)
+    branch = models.ForeignKey("branches.Branch", related_name="appointments", on_delete=models.PROTECT)
+    priority = models.CharField(
+        "triage", max_length=10, choices=PRIORITY_CHOICES, default=ROUTINE, db_index=True,
+        help_text="Emergency and urgent cases go to the top of the queue.",
+    )
+    scheduled_time = models.TimeField(
+        "booked time", null=True, blank=True, help_text="For booked visits; walk-ins join the queue by token."
+    )
     client = models.ForeignKey("clients.Client", related_name="appointments", on_delete=models.PROTECT, verbose_name="owner")
     pet = models.ForeignKey("clients.Pet", related_name="appointments", on_delete=models.PROTECT)
     visit_date = models.DateField(default=timezone.localdate, db_index=True)
@@ -103,7 +118,8 @@ class Appointment(TimeStampedModel):
         ordering = ["-visit_date", "token", "arrival_time", "id"]
         constraints = [
             models.UniqueConstraint(
-                fields=["visit_date", "token"], condition=Q(token__isnull=False), name="appointment_unique_daily_token"
+                fields=["branch", "visit_date", "token"], condition=Q(token__isnull=False),
+                name="appointment_unique_branch_daily_token",
             )
         ]
         permissions = [
@@ -144,13 +160,21 @@ class Appointment(TimeStampedModel):
         return f"{prefix}{sequence:05d}"
 
     def _next_token(self):
-        last = Appointment.objects.filter(visit_date=self.visit_date).aggregate(last=Max("token"))["last"]
+        last = (
+            Appointment.objects.filter(branch_id=self.branch_id, visit_date=self.visit_date)
+            .aggregate(last=Max("token"))["last"]
+        )
         return (last or 0) + 1
 
     def _needs_token(self):
         return self.token is None and self.status not in (self.SCHEDULED, self.CANCELLED)
 
     def save(self, *args, **kwargs):
+        if self.branch_id is None:
+            # Visits made outside the screens (imports, scripts) go to the main branch.
+            from apps.branches.models import Branch
+
+            self.branch = Branch.main()
         # Numbers and tokens come from the highest one in use; if two people save at the
         # same moment the database rejects the duplicate and we simply take the next one.
         attempts = 5
@@ -201,7 +225,7 @@ class Appointment(TimeStampedModel):
         elif action == "start":
             self.status = self.IN_CONSULTATION
             self.started_at = self.started_at or now
-            if self.attended_by_id is None and user is not None and can_attend(user):
+            if self.attended_by_id is None and user is not None and can_attend(user, self.branch):
                 self.attended_by = user
         elif action == "complete":
             self.status = self.COMPLETED
@@ -223,13 +247,18 @@ class Appointment(TimeStampedModel):
 
     # Follow-ups
 
+    @property
+    def priority_color(self):
+        return self.PRIORITY_COLORS.get(self.priority, "secondary")
+
     def create_follow_up(self, user):
         existing = self.follow_ups.exclude(status=self.CANCELLED).first()
         if existing:
             return existing, False
         summary = self.diagnosis.strip().splitlines()[0] if self.diagnosis.strip() else self.reason
-        attending = self.attended_by if self.attended_by and can_attend(self.attended_by) else None
+        attending = self.attended_by if self.attended_by and can_attend(self.attended_by, self.branch) else None
         follow_up = Appointment.objects.create(
+            branch=self.branch,
             client=self.client,
             pet=self.pet,
             visit_date=self.follow_up_date,
@@ -243,19 +272,20 @@ class Appointment(TimeStampedModel):
         return follow_up, True
 
 
-def attending_staff():
-    """Staff who can be chosen in “Attended by”."""
+def attending_staff(branch=None):
+    """Staff who can be chosen in “Attended by”: those who work at the branch, if one is given."""
     from django.contrib.auth import get_user_model
 
-    return (
-        get_user_model()
-        .objects.filter(is_active=True, is_staff=True, staff_profile__can_attend=True)
-        .order_by("first_name", "last_name", "username")
-    )
+    queryset = get_user_model().objects.filter(is_active=True, is_staff=True, staff_profile__can_attend=True)
+    if branch is not None:
+        queryset = queryset.filter(
+            Q(is_superuser=True) | Q(staff_profile__all_branches=True) | Q(staff_profile__branches=branch)
+        )
+    return queryset.distinct().order_by("first_name", "last_name", "username")
 
 
-def can_attend(user):
-    return attending_staff().filter(pk=user.pk).exists()
+def can_attend(user, branch=None):
+    return attending_staff(branch).filter(pk=user.pk).exists()
 
 
 class AppointmentHistory(models.Model):
@@ -318,6 +348,7 @@ class VaccinationRecord(models.Model):
     batch_number = models.CharField("batch / lot no.", max_length=60, blank=True)
     next_due_date = models.DateField(null=True, blank=True)
     notes = models.CharField(max_length=255, blank=True)
+    reminded_at = models.DateTimeField("owner reminded", null=True, blank=True, editable=False)
 
     class Meta:
         ordering = ["vaccine__order", "vaccine__name"]
@@ -338,17 +369,110 @@ class VaccinationRecord(models.Model):
         if self.next_due_date is None:
             self.next_due_date = self.suggest_next_due()
         super().save(*args, **kwargs)
+        PlannedVaccination.mark_given(self)
 
 
-def due_vaccinations(start, end):
+def apply_treatment_template(visit, template):
+    """Add a template's lines to the visit's treatment, priced for the visit's branch. Returns how many."""
+    count = 0
+    for line in template.lines.select_related("item"):
+        item = line.item
+        price = item.price_at(visit.branch)
+        Treatment.objects.create(
+            appointment=visit,
+            item=item,
+            kind=Treatment.KIND_FROM_CATALOGUE.get(item.treatment_kind, "medication"),
+            name=item.name,
+            dose=line.dose or item.default_dose,
+            route=line.route or item.default_route,
+            frequency=line.frequency or item.default_frequency,
+            duration=line.duration or item.default_duration,
+            notes=line.notes,
+            quantity=line.quantity,
+            unit_price=price if price else None,
+        )
+        count += 1
+    if template.diagnosis and not visit.diagnosis.strip():
+        visit.diagnosis = template.diagnosis
+        visit.save(update_fields=["diagnosis"])
+    return count
+
+
+class PlannedVaccination(models.Model):
+    """A dose a pet is due for under a vaccination plan. It is ticked off when the vaccine is recorded."""
+
+    DUE = "due"
+    GIVEN = "given"
+    SKIPPED = "skipped"
+    STATUS_CHOICES = [(DUE, "Due"), (GIVEN, "Given"), (SKIPPED, "Skipped")]
+
+    pet = models.ForeignKey("clients.Pet", related_name="planned_vaccinations", on_delete=models.CASCADE)
+    plan = models.ForeignKey("clinic_setup.VaccinationPlan", related_name="+", on_delete=models.PROTECT)
+    vaccine = models.ForeignKey("clinic_setup.VaccinationType", related_name="+", on_delete=models.PROTECT)
+    label = models.CharField(max_length=60, blank=True)
+    due_date = models.DateField(db_index=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=DUE)
+    record = models.ForeignKey(
+        VaccinationRecord, related_name="+", on_delete=models.SET_NULL, null=True, blank=True, editable=False
+    )
+    reminded_at = models.DateTimeField("owner reminded", null=True, blank=True, editable=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["due_date", "id"]
+        verbose_name = "planned vaccination"
+
+    def __str__(self):
+        return f"{self.vaccine}{f' ({self.label})' if self.label else ''} due {self.due_date:%d %b %Y}"
+
+    @property
+    def is_overdue(self):
+        return self.status == self.DUE and self.due_date < timezone.localdate()
+
+    @property
+    def title(self):
+        return f"{self.vaccine}{f' ({self.label})' if self.label else ''}"
+
+    @classmethod
+    def enrol(cls, pet, plan, start, user=None):
+        """Put the pet on the plan from the start date. Doses already planned for this plan are replaced."""
+        cls.objects.filter(pet=pet, plan=plan, status=cls.DUE).delete()
+        return cls.objects.bulk_create([
+            cls(
+                pet=pet, plan=plan, vaccine_id=dose.vaccine_id, label=dose.label, created_by=user,
+                due_date=start + datetime.timedelta(days=dose.days_after_start),
+            )
+            for dose in plan.doses.all()
+        ])
+
+    @classmethod
+    def mark_given(cls, record):
+        """A recorded dose ticks off the earliest planned dose of the same vaccine."""
+        if record.appointment.status == Appointment.CANCELLED:
+            return
+        planned = (
+            cls.objects.filter(pet_id=record.appointment.pet_id, vaccine_id=record.vaccine_id, status=cls.DUE)
+            .order_by("due_date")
+            .first()
+        )
+        if planned is not None and not cls.objects.filter(record=record).exists():
+            planned.status, planned.record = cls.GIVEN, record
+            planned.save(update_fields=["status", "record"])
+
+
+def due_vaccinations(start, end, branch_ids=None):
     """The latest dose of each vaccine per pet, where the next dose falls between start and end."""
     later_dose = VaccinationRecord.objects.filter(
         appointment__pet=OuterRef("appointment__pet"),
         vaccine=OuterRef("vaccine"),
         appointment__visit_date__gt=OuterRef("appointment__visit_date"),
     ).exclude(appointment__status=Appointment.CANCELLED)
+    records = VaccinationRecord.objects.all()
+    if branch_ids is not None:
+        records = records.filter(appointment__branch_id__in=branch_ids)
     return (
-        VaccinationRecord.objects.filter(next_due_date__range=(start, end))
+        records.filter(next_due_date__range=(start, end))
         .exclude(appointment__status=Appointment.CANCELLED)
         .exclude(appointment__pet__is_deceased=True)
         .annotate(has_later_dose=Exists(later_dose))

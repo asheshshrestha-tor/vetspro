@@ -2,6 +2,7 @@ from django.db.models import Count, Q, Sum
 from django.urls import path, reverse
 from django.utils import timezone
 
+from apps.branches.context import scope_ids
 from apps.clients.models import normalize_phone
 from apps.dashboard.registry import Action, Badge, Module, site
 
@@ -15,17 +16,18 @@ class InvoiceModule(Module):
     icon = "ki-bill"
     description = "Bills for counter sales and visits. A draft becomes an invoice with a number when it is issued."
     menu_order = 10
+    branch_field = "branch"
 
     list_display = ["number_or_draft", "invoice_date", "customer", "visit", "amount", "status_badge"]
     search_fields = ["number", "client__full_name", "client__phone", "customer_name", "customer_phone", "appointment__number"]
-    list_filter = ["status"]
+    list_filter = ["status", "branch"]
     date_filter = "invoice_date"
     per_page = 25
 
     views = {"add": views.NewSaleView, "edit": views.InvoiceView}
 
     def get_queryset(self):
-        return Invoice.objects.select_related("client", "appointment")
+        return Invoice.objects.select_related("branch", "client", "appointment")
 
     def search_conditions(self, term):
         conditions = super().search_conditions(term)
@@ -37,12 +39,13 @@ class InvoiceModule(Module):
     def get_urls(self):
         return [
             path("<int:pk>/print/", views.InvoicePrintView.as_view(), name="invoice_print"),
+            path("<int:pk>/receipt/<int:payment_pk>/", views.PaymentReceiptView.as_view(), name="invoice_receipt"),
             path("<int:pk>/pay/", views.InvoiceActionView.as_view(), {"action": "pay"}, name="invoice_pay"),
             path("<int:pk>/cancel/", views.InvoiceActionView.as_view(), {"action": "cancel"}, name="invoice_cancel"),
             path("visit/<int:appointment_pk>/", views.VisitInvoiceView.as_view(), name="invoice_for_visit"),
         ]
 
-    def menu_items(self):
+    def menu_items(self, request=None):
         return [
             {"title": "New sale", "url": self.add_url, "icon": "ki-handcart", "badge": None, "url_names": ["add"]},
             {"title": self.title, "url": self.list_url, "icon": self.icon, "badge": None, "url_names": []},
@@ -88,9 +91,12 @@ class InvoiceModule(Module):
 
     def home_panel(self, request):
         today = timezone.localdate()
-        issued_today = Invoice.objects.filter(invoice_date=today, status__in=[Invoice.ISSUED, Invoice.PAID])
-        unpaid = Invoice.objects.filter(status=Invoice.ISSUED)
-        payments_today = Payment.objects.filter(received_at__date=today, invoice__status__in=[Invoice.ISSUED, Invoice.PAID])
+        invoices = Invoice.objects.filter(branch_id__in=scope_ids(request))
+        issued_today = invoices.filter(invoice_date=today, status__in=[Invoice.ISSUED, Invoice.PAID])
+        unpaid = invoices.filter(status=Invoice.ISSUED)
+        payments_today = Payment.objects.filter(
+            received_at__date=today, invoice__in=invoices, invoice__status__in=[Invoice.ISSUED, Invoice.PAID]
+        )
         return (
             "billing/home_panel.html",
             {
@@ -100,8 +106,8 @@ class InvoiceModule(Module):
                 "by_method": payments_today.values("method").annotate(total=Sum("amount"), count=Count("id")).order_by("-total"),
                 "unpaid_count": unpaid.count(),
                 "unpaid_total": sum(invoice.balance for invoice in unpaid),
-                "recent": Invoice.objects.exclude(status=Invoice.DRAFT).select_related("client")[:6],
-                "drafts": Invoice.objects.filter(status=Invoice.DRAFT).count(),
+                "recent": invoices.exclude(status=Invoice.DRAFT).select_related("client")[:6],
+                "drafts": invoices.filter(status=Invoice.DRAFT).count(),
                 "can_add": self.user_can_add(request.user),
                 "methods": dict(Payment.METHODS),
             },

@@ -1,0 +1,55 @@
+{% extends "dashboard/base.html" %}
+{% load dashboard_tags billing_tags %}
+
+{% block title %}{{ object }}{% endblock %}
+{% block heading %}Stock transfer {{ object.number }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label=module.group %}
+  {% include "dashboard/partials/crumb.html" with label=module.title url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label=object.number %}
+{% endblock %}
+
+{% block actions %}
+  {% for item in transfer_actions %}
+    <form method="post" action="{{ item.url }}" class="d-inline" onsubmit="return confirm('{{ item.confirm|escapejs }}')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm fw-bold btn-{{ item.color }}"><i class="ki-outline {{ item.icon }} fs-3"></i> {{ item.label }}</button>
+    </form>
+  {% endfor %}
+  <a href="{{ module.list_url }}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back to list</a>
+{% endblock %}
+
+{% block content %}
+  <div class="card mb-5 mb-xl-10">
+    <div class="card-body p-9">
+      <div class="d-flex flex-wrap align-items-center gap-4 mb-8">
+        <div class="fs-3 fw-bold text-gray-900">{{ object.from_branch }}</div>
+        <i class="ki-outline ki-arrow-right fs-1 text-primary"></i>
+        <div class="fs-3 fw-bold text-gray-900">{{ object.to_branch }}</div>
+        <span class="badge badge-light-{{ object.status_color }} fs-6 ms-md-4">{{ object.get_status_display }}</span>
+      </div>
+      <div class="d-flex flex-wrap gap-8 fs-6 mb-8">
+        <div><span class="text-muted">Created</span><br><span class="fw-bold">{{ object.created_at|date:"j M Y, H:i" }}{% if object.created_by %} · {{ object.created_by|staff_name }}{% endif %}</span></div>
+        {% if object.sent_at %}<div><span class="text-muted">Sent</span><br><span class="fw-bold">{{ object.sent_at|date:"j M Y, H:i" }}{% if object.sent_by %} · {{ object.sent_by|staff_name }}{% endif %}</span></div>{% endif %}
+        {% if object.received_at %}<div><span class="text-muted">Received</span><br><span class="fw-bold">{{ object.received_at|date:"j M Y, H:i" }}{% if object.received_by %} · {{ object.received_by|staff_name }}{% endif %}</span></div>{% endif %}
+        {% if object.note %}<div><span class="text-muted">Note</span><br><span class="fw-bold">{{ object.note }}</span></div>{% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table align-middle table-row-dashed gy-3 mb-0">
+          <thead><tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0"><th scope="col">Item</th><th scope="col" class="text-end">Quantity</th></tr></thead>
+          <tbody class="fw-semibold text-gray-700">
+            {% for item in object.items.all %}
+              <tr>
+                <td><a href="{% url 'dashboard:product_stock' item.product_id %}" class="text-gray-900 text-hover-primary">{{ item.product }}</a></td>
+                <td class="text-end">{{ item.quantity|qty }} {{ item.product.unit }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2" class="text-muted">No items.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}

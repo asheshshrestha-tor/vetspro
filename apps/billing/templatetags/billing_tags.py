@@ -24,3 +24,11 @@ def qty(value):
     except (InvalidOperation, TypeError, ValueError):
         return value
     return f"{amount.normalize():f}"
+
+
+@register.filter
+def stock_at(product, branch):
+    """A product's stock at one branch."""
+    if product is None:
+        return ""
+    return product.stock_at(branch)

@@ -14,6 +14,9 @@
   {% if can_edit %}
     <a href="{% url 'dashboard:edit' 'clients' 'client' client.pk %}" class="btn btn-sm fw-bold btn-light-primary"><i class="ki-outline ki-pencil fs-3"></i> Edit</a>
   {% endif %}
+  {% if perms.messaging.add_outboundmessage %}
+    <a href="{% url 'dashboard:add' 'messaging' 'outboundmessage' %}?client={{ client.pk }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-sm fw-bold btn-light-success"><i class="ki-outline ki-send fs-3"></i> Message</a>
+  {% endif %}
   {% if can_sell and client.is_active %}
     <a href="{% url 'dashboard:add' 'billing' 'invoice' %}?client={{ client.pk }}" class="btn btn-sm fw-bold btn-light-success"><i class="ki-outline ki-handcart fs-3"></i> New sale</a>
   {% endif %}

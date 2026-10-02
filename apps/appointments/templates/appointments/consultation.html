@@ -31,13 +31,15 @@
             <a href="{{ pet.get_absolute_url }}" class="text-gray-900 text-hover-primary fs-2 fw-bold">{{ pet.name }}</a>
             <span class="badge badge-light-{{ visit.status_color }} fs-7">{{ visit.get_status_display }}</span>
             {% if visit.token %}<span class="badge badge-light fs-7">Token {{ visit.token }}</span>{% endif %}
+            {% if visit.priority != "routine" %}<span class="badge badge-{{ visit.priority_color }} fs-7">{{ visit.get_priority_display }}</span>{% endif %}
           </div>
           <div class="text-gray-600 fw-semibold mb-3">
             {{ pet.species }}{% if pet.breed %} · {{ pet.breed }}{% endif %} · {{ pet.get_sex_display }}{% if pet.is_neutered %} (neutered){% endif %}{% if pet.age_display %} · {{ pet.age_display }}{% endif %}
           </div>
           <div class="d-flex flex-wrap gap-6 fs-6">
             <div><span class="text-muted">Owner</span><br><a href="{{ client.get_absolute_url }}" class="fw-bold">{{ client.full_name }}</a> · <a href="tel:{{ client.phone_digits }}">{{ client.phone }}</a></div>
-            <div><span class="text-muted">Date</span><br><span class="fw-bold text-gray-800">{{ visit.visit_date|date:"j M Y" }}{% if visit.arrival_time %}, {{ visit.arrival_time|time:"H:i" }}{% endif %}</span></div>
+            <div><span class="text-muted">Date</span><br><span class="fw-bold text-gray-800">{{ visit.visit_date|date:"j M Y" }}{% if visit.arrival_time %}, {{ visit.arrival_time|time:"H:i" }}{% elif visit.scheduled_time %}, booked {{ visit.scheduled_time|time:"H:i" }}{% endif %}</span></div>
+            <div><span class="text-muted">Branch</span><br><span class="fw-bold text-gray-800">{{ visit.branch.name }}</span></div>
             <div><span class="text-muted">Attended by</span><br><span class="fw-bold text-gray-800">{{ visit.attended_by|staff_name|default:"—" }}</span></div>
             {% if visit.follow_up_of %}
               <div><span class="text-muted">Follow-up of</span><br><a href="{{ visit.follow_up_of.get_absolute_url }}" class="fw-bold">{{ visit.follow_up_of.number }}</a></div>
@@ -49,6 +51,9 @@
           {% if can_view_clinical and visit.status != "cancelled" %}
             <a href="{% url 'dashboard:appointment_form' visit.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-light mb-1"><i class="ki-outline ki-printer fs-4"></i> Print form</a>
             <a href="{% url 'dashboard:appointment_print' visit.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-light mb-1"><i class="ki-outline ki-document fs-4"></i> Print summary</a>
+          {% endif %}
+          {% if perms.messaging.add_outboundmessage %}
+            <a href="{% url 'dashboard:add' 'messaging' 'outboundmessage' %}?appointment={{ visit.pk }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-light-success mb-1"><i class="ki-outline ki-send fs-4"></i> Message owner</a>
           {% endif %}
         </div>
       </div>
@@ -74,12 +79,12 @@
       <ul class="nav nav-stretch nav-line-tabs nav-line-tabs-2x border-transparent fs-5 fw-bold flex-nowrap overflow-auto" role="tablist">
         <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary active" data-bs-toggle="tab" data-bs-target="#tab-visit" role="tab">Visit</button></li>
         {% if can_view_clinical %}
-          <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-history" role="tab">History</button></li>
-          <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-exam" role="tab">Examination</button></li>
+          <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-history" role="tab" title="Subjective: what the owner reports"><span class="soap-letter">S</span> History</button></li>
+          <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-exam" role="tab" title="Objective: what is measured"><span class="soap-letter">O</span> Examination</button></li>
         {% endif %}
         <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-vaccination" role="tab">Vaccination</button></li>
         {% if can_view_clinical %}
-          <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-result" role="tab">Treatment &amp; result</button></li>
+          <li class="nav-item" role="presentation"><button type="button" class="nav-link text-active-primary" data-bs-toggle="tab" data-bs-target="#tab-result" role="tab" title="Assessment and plan"><span class="soap-letter">A/P</span> Diagnosis &amp; treatment</button></li>
         {% endif %}
       </ul>
     </div>
@@ -97,6 +102,7 @@
               {% else %}
                 <dl class="row mb-0">
                   <dt class="col-sm-4 text-muted fw-semibold">Reason for visit</dt><dd class="col-sm-8 text-gray-800">{{ visit.reason }}</dd>
+                  <dt class="col-sm-4 text-muted fw-semibold">Triage</dt><dd class="col-sm-8"><span class="badge badge-light-{{ visit.priority_color }}">{{ visit.get_priority_display }}</span></dd>
                   <dt class="col-sm-4 text-muted fw-semibold">Attended by</dt><dd class="col-sm-8 text-gray-800">{{ visit.attended_by|staff_name|default:"—" }}</dd>
                   <dt class="col-sm-4 text-muted fw-semibold">Body weight</dt><dd class="col-sm-8 text-gray-800">{% if visit.weight_kg is not None %}{{ visit.weight_kg }} kg{% else %}—{% endif %}</dd>
                 </dl>
@@ -206,7 +212,22 @@
         {% if can_view_clinical %}
           {# Treatment and result #}
           <div class="tab-pane fade" id="tab-result" role="tabpanel">
-            <h3 class="fs-5 fw-bold text-gray-900 mb-2">Treatment</h3>
+            <h3 class="fs-5 fw-bold text-gray-900 mb-6">Assessment <span class="text-muted fw-semibold fs-7">findings, diagnosis and outcome</span></h3>
+            {% if clinical_form %}
+              {% for error in clinical_form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+              {% for field in clinical_form %}{% include "dashboard/partials/field.html" %}{% endfor %}
+            {% else %}
+              <dl class="row mb-0">
+                <dt class="col-sm-3 text-muted fw-semibold">Clinical notes</dt><dd class="col-sm-9 text-gray-800 message-body">{{ visit.clinical_notes|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted fw-semibold">Diagnosis</dt><dd class="col-sm-9 text-gray-800 message-body">{{ visit.diagnosis|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted fw-semibold">Outcome</dt><dd class="col-sm-9 text-gray-800">{{ visit.get_outcome_display|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted fw-semibold">Result notes</dt><dd class="col-sm-9 text-gray-800 message-body">{{ visit.result_notes|default:"—" }}</dd>
+                <dt class="col-sm-3 text-muted fw-semibold">Follow-up date</dt><dd class="col-sm-9 text-gray-800">{{ visit.follow_up_date|date:"j M Y"|default:"—" }}</dd>
+              </dl>
+            {% endif %}
+
+            <div class="separator separator-dashed my-8"></div>
+            <h3 class="fs-5 fw-bold text-gray-900 mb-2">Plan <span class="text-muted fw-semibold fs-7">treatment given and prescribed</span></h3>
             {% if treatment_formset %}
               <p class="text-gray-600 mb-5">
                 Search the treatment catalogue to fill in the usual dose and price, then adjust anything for this pet.
@@ -243,7 +264,21 @@
                 <template data-inline-template>
                   {% include "appointments/partials/treatment_row.html" with form=treatment_formset.empty_form %}
                 </template>
-                <button type="button" class="btn btn-sm btn-light-primary" data-inline-add><i class="ki-outline ki-plus fs-3"></i> Add treatment</button>
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                  <button type="button" class="btn btn-sm btn-light-primary" data-inline-add><i class="ki-outline ki-plus fs-3"></i> Add treatment</button>
+                  {% if treatment_templates %}
+                    <div class="d-flex align-items-center gap-2 ms-md-auto">
+                      <label class="visually-hidden" for="treatment-template">Treatment template</label>
+                      <select id="treatment-template" class="form-select form-select-sm form-select-solid w-auto" data-template-select>
+                        <option value="">Use a template…</option>
+                        {% for template in treatment_templates %}<option value="{{ template.pk }}">{{ template.name }}</option>{% endfor %}
+                      </select>
+                      <button type="submit" name="_template" value="" class="btn btn-sm btn-light" data-template-apply disabled>
+                        <i class="ki-outline ki-note-2 fs-4"></i> Add its lines
+                      </button>
+                    </div>
+                  {% endif %}
+                </div>
               </div>
             {% else %}
               {% for treatment in treatments %}
@@ -257,21 +292,6 @@
                   {% if treatment.notes %}<div class="text-muted fs-7 mt-1">{{ treatment.notes }}</div>{% endif %}
                 </div>
               {% empty %}<p class="text-muted">No treatment recorded.</p>{% endfor %}
-            {% endif %}
-
-            <div class="separator separator-dashed my-8"></div>
-            <h3 class="fs-5 fw-bold text-gray-900 mb-6">Findings and result</h3>
-            {% if clinical_form %}
-              {% for error in clinical_form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
-              {% for field in clinical_form %}{% include "dashboard/partials/field.html" %}{% endfor %}
-            {% else %}
-              <dl class="row mb-0">
-                <dt class="col-sm-3 text-muted fw-semibold">Clinical notes</dt><dd class="col-sm-9 text-gray-800 message-body">{{ visit.clinical_notes|default:"—" }}</dd>
-                <dt class="col-sm-3 text-muted fw-semibold">Diagnosis</dt><dd class="col-sm-9 text-gray-800 message-body">{{ visit.diagnosis|default:"—" }}</dd>
-                <dt class="col-sm-3 text-muted fw-semibold">Outcome</dt><dd class="col-sm-9 text-gray-800">{{ visit.get_outcome_display|default:"—" }}</dd>
-                <dt class="col-sm-3 text-muted fw-semibold">Result notes</dt><dd class="col-sm-9 text-gray-800 message-body">{{ visit.result_notes|default:"—" }}</dd>
-                <dt class="col-sm-3 text-muted fw-semibold">Follow-up date</dt><dd class="col-sm-9 text-gray-800">{{ visit.follow_up_date|date:"j M Y"|default:"—" }}</dd>
-              </dl>
             {% endif %}
           </div>
         {% endif %}
@@ -300,6 +320,8 @@
   {% if can_bill and visit.status != "cancelled" %}
     {% include "billing/partials/visit_billing.html" %}
   {% endif %}
+
+  {% if can_view_clinical %}{% include "clients/partials/documents.html" %}{% endif %}
 
   {% if visit.follow_up_date %}
     <div class="card">

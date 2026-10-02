@@ -40,16 +40,22 @@ apps/
   gallery/              Photo gallery
   testimonials/         Client testimonials shown on the home page
   contact/              Contact form and received messages
-  accounts/             Staff users, roles and "My profile"
-  clinic_setup/         Species, history options, vaccination types, examination types
-  clients/              Pet owners and their pets, with client and pet record pages
-  appointments/         Walk-in queue, consultations, follow-ups and printable visit summaries
-  shop/                 Products, stock and the public pet shop pages
-  billing/              Invoices for counter sales and visits, and payments
+  branches/             Branches, the branch switcher and the public Branches page
+  accounts/             Staff users, roles, their branches and "My profile"
+  clinic_setup/         Species, history and examination fields, vaccination types and plans,
+                        treatment templates
+  clients/              Pet owners and their pets, record pages and pet documents
+  appointments/         Queue and triage board, bookings, consultations, follow-ups, vaccination plans
+  shop/                 Products and packages, stock per branch, transfers, branch prices, pet shop pages
+  billing/              Invoices for counter sales and visits, payments and receipts
+  messaging/            Reminders and messages to owners by SMS, WhatsApp or email
+  reports/              Sales, payments, visits and vets' work, with CSV export
+  activity/             Log of changes and sign-ins
   dashboard/            Staff dashboard: layout, sign-in, and the list and form pages for every module
 templates/              Page templates, one folder per app, shared pieces in partials/
 static/                 CSS, JavaScript and the logo
-media/                  Files uploaded through the admin
+media/                  Public uploads (photos for the website, product images)
+private_media/          Pet documents: never served directly, only through the dashboard
 ```
 
 ## Editing content
@@ -219,6 +225,77 @@ the hospital; there is no online payment.
 By default Veterinarians and Receptionists can bill and issue invoices, Receptionists
 can also take payments, and only Administrators can adjust stock or cancel invoices.
 
+## Branches
+
+The hospital can work from several branches under one website and one dashboard
+(Staff > Branches). Owners, pets, the catalogue and staff accounts are shared by all
+branches; **visits, bills, stock and messages belong to a branch**.
+
+- **Who works where:** on each staff user, tick their branches and a default branch, or
+  tick "All branches" for owners and managers. With only one branch nothing needs choosing.
+- **Switching:** the branch button at the top of the dashboard changes the branch being
+  worked in. People with several branches can also choose "All my branches" to see
+  everything together; adding a visit or a sale then asks which branch it is for.
+- **Queue and bookings:** each branch has its own queue and daily tokens. Walk-ins get a
+  triage level (emergency, urgent, routine); emergencies go to the top of the queue, and
+  the **Triage board** shows the queue as columns. Visits booked for a later day can have a
+  time, and **Clinic > Bookings** shows the week.
+- **Stock:** each branch has its own stock count and low-stock warnings. Stock is moved
+  with **Shop > Stock transfers**: a transfer leaves the sending branch when sent and
+  arrives when the receiving branch marks it received (or goes back if cancelled).
+- **Prices:** everything sells at the hospital price unless a branch has its own price
+  (Shop > Branch prices). **Sync prices** resets a branch to the hospital prices, copies
+  one branch's prices to another, or makes a branch's prices the new hospital prices.
+- **Bills:** each branch numbers its own bills (`INV-CODE-2026-00001`) and can have its
+  own PAN/VAT number, VAT rate, invoice footer and visit fee; blank values use the ones in
+  Site settings.
+- **Website:** with more than one open branch, a Branches page and menu link appear, the
+  contact form asks which branch, and product pages show which branches have it in stock.
+
+## Clinical records
+
+- **SOAP:** the visit tabs follow Subjective (History), Objective (Examination), and
+  Assessment & Plan (Diagnosis & treatment); the printed summary uses the same headings.
+- **Treatment templates** (Clinic setup): the usual treatment for a condition. In a visit,
+  "Use a template" adds all its lines at the branch's prices, and its diagnosis if none is
+  written yet.
+- **Documents:** lab reports, X-rays, photos and letters are uploaded on the pet's record
+  or a visit. They are stored in `private_media/` and only sent to signed-in staff with
+  permission; the web server must **not** serve that folder.
+- **Vaccination plans** (Clinic setup): schedules such as puppy core vaccines. Put a pet on
+  a plan from its record; each dose shows as due, and is ticked off when the vaccine is
+  recorded in a visit.
+
+## Messages and reminders
+
+**Inbox > Reminders** lists tomorrow's bookings, vaccinations coming due and planned doses,
+with a "Remind" button that opens a message already written from the matching template
+(Clinic setup > Message templates), and "Mark reminded" for reminders given by phone.
+Messages can also be sent from a client, a visit or an invoice. Every message is kept in
+Inbox > Messages sent.
+
+| Channel | Set up with | Without setup |
+| --- | --- | --- |
+| WhatsApp | `WHATSAPP_MODE=cloud`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (WhatsApp Business Cloud API) | Opens WhatsApp with the message typed in; staff press send |
+| SMS | `SMS_PROVIDER=sparrow` with `SPARROW_SMS_TOKEN` and `SPARROW_SMS_FROM`, or `SMS_PROVIDER=aakash` with `AAKASH_SMS_TOKEN` | Saved in the log only |
+| Email | Django's `EMAIL_*` settings | Printed on the console in development |
+
+WhatsApp's Cloud API only delivers free-form text within 24 hours of the owner's last
+message; outside that window Meta requires approved templates, so the default link mode is
+the practical choice for reminders.
+
+## Reports and activity log
+
+**Billing > Reports** shows sales, payments by method, unpaid balances, visits, each vet's
+visits and billed amounts, the best-selling services and products, and stock value, for
+any period and for the current branch or all of them. Each table can be downloaded as CSV.
+Veterinarians and Administrators see reports; money figures need permission to view
+invoices.
+
+**Staff > Activity log** (Administrators) records who added, changed or deleted what,
+with the old and new values, and every sign-in and failed sign-in. Passwords are never
+stored in it.
+
 ## Running the tests
 
 ```powershell
@@ -243,6 +320,8 @@ Use `config.settings.prod` and set these environment variables:
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | Comma-separated origins, e.g. `https://example.com`. |
 | `CONTACT_NOTIFY_EMAIL` | Address that receives an email for each contact message. |
 | `DEFAULT_FROM_EMAIL`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` | Outgoing mail. |
+| `PRIVATE_MEDIA_ROOT` | Where pet documents are stored. Defaults to `private_media/` in the project. |
+| `SMS_PROVIDER`, `WHATSAPP_MODE` and their tokens | Messaging; see "Messages and reminders". |
 
 Then run `python manage.py migrate` and `python manage.py collectstatic`, and have
-the web server serve `staticfiles/` and `media/`.
+the web server serve `staticfiles/` and `media/`. Do not map `private_media/` to any URL.

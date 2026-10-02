@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Our branches | {{ site.short_name }}{% endblock %}
+{% block meta_description %}Find the {{ site.short_name }} branch nearest to you: address, phone, WhatsApp and opening hours.{% endblock %}
+
+{% block content %}
+  {% include "partials/page_header.html" with title="Our branches" %}
+
+  <section class="section section--tight-top">
+    <div class="container">
+      <div class="branch-grid">
+        {% for branch in branches %}
+          <article class="branch-card reveal">
+            {% if branch.map_embed_url %}
+              <iframe class="branch-card__map" src="{{ branch.map_embed_url }}" title="Map of the {{ branch.name }} branch" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            {% endif %}
+            <div class="branch-card__body">
+              <h2 class="h3">{{ branch.name }}{% if branch.is_main %} <span class="branch-card__tag">Main hospital</span>{% endif %}</h2>
+              <ul class="branch-card__list">
+                {% if branch.effective_address %}<li><i class="fa-solid fa-location-dot" aria-hidden="true"></i> {{ branch.effective_address }}</li>{% endif %}
+                {% if branch.opening_hours %}<li><i class="fa-solid fa-clock" aria-hidden="true"></i> {{ branch.opening_hours }}</li>{% endif %}
+                {% if branch.effective_phone %}<li><i class="fa-solid fa-phone" aria-hidden="true"></i> <a href="{{ branch.phone_href }}">{{ branch.effective_phone }}</a></li>{% endif %}
+                {% if branch.whatsapp_href %}<li><i class="fa-brands fa-whatsapp" aria-hidden="true"></i> <a href="{{ branch.whatsapp_href }}" target="_blank" rel="noopener">{{ branch.whatsapp }}</a></li>{% endif %}
+                {% if branch.email %}<li><i class="fa-solid fa-envelope" aria-hidden="true"></i> <a href="mailto:{{ branch.email }}">{{ branch.email }}</a></li>{% endif %}
+              </ul>
+              <a class="btn btn--outline btn--small" href="{% url 'contact:contact' %}?branch={{ branch.pk }}">Send a message</a>
+            </div>
+          </article>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+{% endblock %}

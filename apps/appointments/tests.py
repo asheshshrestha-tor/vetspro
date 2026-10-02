@@ -234,7 +234,7 @@ class ConsultationPermissionTests(ClinicTestCase):
         self.login(self.vet)
         url = visit.get_absolute_url()
         page = self.client.get(url)
-        self.assertContains(page, "Treatment &amp; result")
+        self.assertContains(page, "Diagnosis &amp; treatment")
         self.assertContains(page, "External parasites")
         data = self.consultation_data(visit, **{
             f"exam-{temperature.pk}-value": "39.9",
@@ -272,7 +272,7 @@ class ConsultationPermissionTests(ClinicTestCase):
         visit = self.visit(diagnosis="Secret")
         self.login(self.reception)
         response = self.client.get(visit.get_absolute_url())
-        self.assertNotContains(response, "Treatment &amp; result")
+        self.assertNotContains(response, "Diagnosis &amp; treatment")
         self.assertNotContains(response, "Secret")
         self.client.post(visit.get_absolute_url(), self.consultation_data(visit, **{"clinical-diagnosis": "Changed"}))
         visit.refresh_from_db()

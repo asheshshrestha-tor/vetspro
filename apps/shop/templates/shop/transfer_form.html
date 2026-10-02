@@ -1,0 +1,11 @@
+{% extends "dashboard/form.html" %}
+
+{% block actions %}
+  {% for item in transfer_actions %}
+    <form method="post" action="{{ item.url }}" class="d-inline" onsubmit="return confirm('{{ item.confirm|escapejs }}')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm fw-bold btn-{{ item.color }}"><i class="ki-outline {{ item.icon }} fs-3"></i> {{ item.label }}</button>
+    </form>
+  {% endfor %}
+  {{ block.super }}
+{% endblock %}

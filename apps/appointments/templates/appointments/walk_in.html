@@ -97,11 +97,14 @@
             <div class="card-title"><h2 class="fs-3 fw-bold m-0">3. Visit</h2></div>
           </div>
           <div class="card-body p-9">
+            {% if branch %}<div class="text-muted fs-7 mb-6"><i class="ki-outline ki-geolocation fs-6"></i> {{ branch.name }}</div>{% endif %}
             {% include "dashboard/partials/field.html" with field=form.reason %}
+            {% include "dashboard/partials/field.html" with field=form.priority %}
             {% include "dashboard/partials/field.html" with field=form.attended_by %}
             {% include "dashboard/partials/field.html" with field=form.weight_kg %}
             {% include "dashboard/partials/field.html" with field=form.visit_date %}
-            <div class="form-text mt-n4">Today puts the pet in the queue with a token. A later date books a follow-up.</div>
+            <div class="form-text mt-n4 mb-6">Today puts the pet in the queue with a token. A later date books the visit.</div>
+            {% include "dashboard/partials/field.html" with field=form.scheduled_time %}
           </div>
           <div class="card-footer d-flex flex-wrap gap-3 py-5">
             <button type="submit" class="btn btn-primary">Add to queue</button>

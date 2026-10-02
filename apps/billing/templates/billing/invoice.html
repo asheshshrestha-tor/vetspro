@@ -14,6 +14,9 @@
   <a href="{{ back_url }}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back</a>
   {% if not invoice.is_draft %}
     <a href="{% url 'dashboard:invoice_print' invoice.pk %}" target="_blank" rel="noopener" class="btn btn-sm fw-bold btn-light-primary"><i class="ki-outline ki-printer fs-3"></i> Print</a>
+    {% if perms.messaging.add_outboundmessage and invoice.status != "cancelled" and invoice.phone_display %}
+      <a href="{% url 'dashboard:add' 'messaging' 'outboundmessage' %}?invoice={{ invoice.pk }}{% if invoice.client %}&amp;client={{ invoice.client_id }}{% endif %}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-sm fw-bold btn-light-success"><i class="ki-outline ki-send fs-3"></i> Send</a>
+    {% endif %}
   {% endif %}
 {% endblock %}
 
@@ -118,6 +121,7 @@
                       <th scope="col" class="min-w-250px">Product / service and description</th>
                       <th scope="col" class="w-100px">Qty</th>
                       <th scope="col" class="w-125px">Price</th>
+                      <th scope="col" class="w-90px">Disc. %</th>
                       <th scope="col" class="text-end w-125px">Amount</th>
                       <th scope="col" class="text-end">Remove</th>
                     </tr>
@@ -215,7 +219,7 @@
                     <tr>
                       <td class="text-gray-900">{{ item.description }}{% if item.product and item.product.name != item.description %}<div class="text-muted fs-7">{{ item.product.name }}</div>{% endif %}</td>
                       <td class="text-end">{{ item.quantity|qty }}{% if item.product %} {{ item.product.unit }}{% endif %}</td>
-                      <td class="text-end">{{ item.unit_price|rs }}</td>
+                      <td class="text-end">{{ item.unit_price|rs }}{% if item.discount_percent %}<div class="text-success fs-8">− {{ item.discount_percent|qty }}%</div>{% endif %}</td>
                       <td class="text-end">{{ item.line_total|rs }}</td>
                     </tr>
                   {% empty %}
@@ -249,6 +253,7 @@
                   <div class="fw-bold text-gray-900">{{ payment.amount|rs }} · {{ payment.get_method_display }}</div>
                   <div class="text-muted fs-7">{{ payment.received_at|date:"j M Y, H:i" }}{% if payment.received_by %} · {{ payment.received_by|staff_name }}{% endif %}{% if payment.reference %} · Ref {{ payment.reference }}{% endif %}</div>
                 </div>
+                <a href="{% url 'dashboard:invoice_receipt' invoice.pk payment.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-icon btn-light" title="Print receipt {{ payment.receipt_number }}"><i class="ki-outline ki-printer fs-4"></i><span class="visually-hidden">Print receipt</span></a>
               </div>
             {% empty %}
               <p class="text-muted">No payments yet.</p>

@@ -140,6 +140,7 @@ def build_inline_formsets(module, instance, data=None, files=None):
             formfield_callback=formfield_callback,
             extra=inline.extra,
             can_delete=True,
+            fk_name=inline.fk_name,
         )
         formset = factory(data, files, instance=instance, prefix=f"inline{index}")
         formset.title = inline.get_title()

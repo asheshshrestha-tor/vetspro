@@ -1,0 +1,106 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Send a message{% endblock %}
+{% block heading %}Send a message{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Inbox" %}
+  {% include "dashboard/partials/crumb.html" with label="Messages sent" url=module.list_url %}
+  {% include "dashboard/partials/crumb.html" with label="Send" %}
+{% endblock %}
+
+{% block content %}
+  <div class="row g-5 g-xl-8">
+    <div class="col-xl-8">
+      <form method="post" novalidate class="card" data-compose data-phone="{{ client_phone }}" data-email="{{ client_email }}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next_url }}">
+        <input type="hidden" name="purpose" value="{{ purpose }}">
+        {% for key, value in related.items %}{% if value %}<input type="hidden" name="{{ key }}" value="{{ value.pk }}">{% endif %}{% endfor %}
+        <div class="card-header">
+          <div class="card-title flex-column align-items-start">
+            <h2 class="fs-3 fw-bold m-0">{% if client %}To {{ client.full_name }}{% else %}New message{% endif %}</h2>
+            {% if related.pet or related.appointment or related.invoice %}
+              <span class="text-muted fs-7 fw-semibold mt-1">
+                About {% if related.pet %}{{ related.pet.name }}{% elif related.appointment %}{{ related.appointment.pet.name }}{% endif %}
+                {% if related.appointment %}· {{ related.appointment.number }}{% endif %}
+                {% if related.invoice %}· {{ related.invoice.display_number }}{% endif %}
+              </span>
+            {% endif %}
+          </div>
+          {% if templates %}
+            <div class="card-toolbar">
+              <select class="form-select form-select-sm form-select-solid w-auto" aria-label="Use a template" data-template-switch>
+                <option value="">Use another template…</option>
+                {% for item in templates %}<option value="{{ item.pk }}" {% if item == template %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+              </select>
+            </div>
+          {% endif %}
+        </div>
+        <div class="card-body p-9">
+          {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+          <div class="d-flex flex-wrap gap-6 mb-8">
+            {% for choice in form.channel %}
+              <label class="d-flex align-items-center gap-2 fw-semibold text-gray-800">{{ choice.tag }} {{ choice.choice_label }}</label>
+            {% endfor %}
+          </div>
+          {% include "dashboard/partials/field.html" with field=form.to %}
+          <div data-email-only>{% include "dashboard/partials/field.html" with field=form.subject %}</div>
+          {% include "dashboard/partials/field.html" with field=form.body %}
+        </div>
+        <div class="card-footer d-flex flex-wrap gap-3 py-5">
+          <button type="submit" class="btn btn-primary"><i class="ki-outline ki-send fs-3"></i> Send</button>
+          <a href="{% if next_url %}{{ next_url }}{% else %}{{ module.list_url }}{% endif %}" class="btn btn-light">Cancel</a>
+        </div>
+      </form>
+    </div>
+    <div class="col-xl-4">
+      <div class="card mb-5">
+        <div class="card-header"><div class="card-title"><h2 class="fs-4 fw-bold m-0">How messages go out</h2></div></div>
+        <div class="card-body pt-2 fs-6 text-gray-700">
+          <p><strong>WhatsApp:</strong> {% if channels.whatsapp == "cloud" %}sent through the WhatsApp Business API.{% else %}opens WhatsApp with the message typed in; press send there.{% endif %}</p>
+          <p><strong>SMS:</strong> {% if channels.sms == "console" %}no SMS provider is set up yet, so SMS are only saved in the log.{% else %}sent through {{ channels.sms|capfirst }} SMS.{% endif %}</p>
+          <p class="mb-0"><strong>Email:</strong> {% if channels.email == "console" %}printed on the server only (development setting).{% else %}sent by the hospital's email account.{% endif %}</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><h2 class="fs-4 fw-bold m-0">Placeholders</h2></div></div>
+        <div class="card-body pt-2">
+          {% for key, label in placeholders.items %}<div class="fs-7"><code>{{ "{" }}{{ key }}{{ "}" }}</code> {{ label }}</div>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    (function () {
+      "use strict";
+      var form = document.querySelector("[data-compose]");
+      if (!form) return;
+      var to = form.querySelector('input[name="to"]');
+      var emailOnly = form.querySelector("[data-email-only]");
+      var update = function (changed) {
+        var checked = form.querySelector('input[name="channel"]:checked');
+        var channel = checked ? checked.value : "";
+        if (emailOnly) emailOnly.hidden = channel !== "email";
+        if (changed) {
+          var value = channel === "email" ? form.getAttribute("data-email") : form.getAttribute("data-phone");
+          if (value) to.value = value;
+        }
+      };
+      form.querySelectorAll('input[name="channel"]').forEach(function (input) {
+        input.addEventListener("change", function () { update(true); });
+      });
+      update(false);
+      var switcher = document.querySelector("[data-template-switch]");
+      if (switcher) switcher.addEventListener("change", function () {
+        if (!switcher.value) return;
+        var url = new URL(window.location.href);
+        url.searchParams.set("template", switcher.value);
+        window.location.href = url.toString();
+      });
+    })();
+  </script>
+{% endblock %}

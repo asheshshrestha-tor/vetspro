@@ -1,0 +1,31 @@
+{% load dashboard_tags %}
+{% if rows %}
+  <div class="table-responsive">
+    <table class="table align-middle table-row-dashed fs-6 gy-3 mb-0">
+      <thead>
+        <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+          <th scope="col">Due</th><th scope="col">Pet</th><th scope="col">Owner</th><th scope="col">For</th><th scope="col">Reminded</th><th scope="col" class="text-end">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="fw-semibold text-gray-700">
+        {% for row in rows %}
+          {% if kind == "booking" %}
+            {% with pet=row.pet owner=row.client due=row.visit_date what=row.reason reminded=None %}
+              {% include "messaging/partials/reminder_row.html" with param="appointment" %}
+            {% endwith %}
+          {% elif kind == "vaccination" %}
+            {% with pet=row.appointment.pet owner=row.appointment.client due=row.next_due_date what=row.vaccine reminded=row.reminded_at %}
+              {% include "messaging/partials/reminder_row.html" with param="vaccination" %}
+            {% endwith %}
+          {% else %}
+            {% with pet=row.pet owner=row.pet.client due=row.due_date what=row.title reminded=row.reminded_at %}
+              {% include "messaging/partials/reminder_row.html" with param="planned" %}
+            {% endwith %}
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p class="text-gray-600 mb-0">Nothing due.</p>
+{% endif %}

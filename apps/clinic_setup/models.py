@@ -174,3 +174,64 @@ class ExaminationType(ValueDefinition, TimeStampedModel):
                 code, number = f"{base}-{number}", number + 1
             self.code = code
         super().save(*args, **kwargs)
+
+
+class TreatmentTemplate(LookupModel):
+    """A usual treatment for a condition, e.g. “Parvo protocol”, added to a visit in one click."""
+
+    diagnosis = models.CharField(
+        max_length=255, blank=True, help_text="Filled into the visit's diagnosis if it is still empty."
+    )
+
+    class Meta(LookupModel.Meta):
+        verbose_name = "treatment template"
+
+
+class TreatmentTemplateLine(models.Model):
+    template = models.ForeignKey(TreatmentTemplate, related_name="lines", on_delete=models.CASCADE)
+    item = models.ForeignKey(
+        "shop.Product", related_name="+", on_delete=models.PROTECT, verbose_name="catalogue item",
+        limit_choices_to=~models.Q(treatment_kind=""),
+    )
+    dose = models.CharField(max_length=60, blank=True, help_text="Blank uses the item's usual dose.")
+    route = models.CharField(max_length=60, blank=True)
+    frequency = models.CharField(max_length=60, blank=True)
+    duration = models.CharField(max_length=60, blank=True)
+    quantity = models.DecimalField("qty to bill", max_digits=10, decimal_places=2, default=1)
+    notes = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "template line"
+
+    def __str__(self):
+        return str(self.item)
+
+
+class VaccinationPlan(LookupModel):
+    """A schedule of doses, e.g. “Puppy core vaccines”. A pet put on a plan gets each dose's due date."""
+
+    species = models.ForeignKey(
+        Species, related_name="vaccination_plans", on_delete=models.SET_NULL, null=True, blank=True,
+        help_text="Leave blank if it suits any species.",
+    )
+
+    class Meta(LookupModel.Meta):
+        verbose_name = "vaccination plan"
+
+
+class PlanDose(models.Model):
+    plan = models.ForeignKey(VaccinationPlan, related_name="doses", on_delete=models.CASCADE)
+    vaccine = models.ForeignKey(VaccinationType, related_name="+", on_delete=models.PROTECT)
+    label = models.CharField(max_length=60, blank=True, help_text="e.g. 1st dose, booster.")
+    days_after_start = models.PositiveIntegerField(
+        default=0, help_text="Days after the plan starts, e.g. 0, 21, 42."
+    )
+
+    class Meta:
+        ordering = ["days_after_start", "id"]
+        verbose_name = "dose"
+
+    def __str__(self):
+        return f"{self.vaccine}{f' ({self.label})' if self.label else ''}"
+

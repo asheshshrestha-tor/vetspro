@@ -22,7 +22,8 @@
         var removed = row.querySelector('input[name$="-DELETE"]');
         var qty = number(row.querySelector('input[name$="-quantity"]'));
         var price = number(row.querySelector('input[name$="-unit_price"]'));
-        var amount = removed && removed.checked ? 0 : qty * price;
+        var off = Math.min(Math.max(number(row.querySelector('input[name$="-discount_percent"]')), 0), 100);
+        var amount = removed && removed.checked ? 0 : Math.round(qty * price * (100 - off)) / 100;
         subtotal += amount;
         var cell = row.querySelector("[data-line-total]");
         if (cell) cell.textContent = qty && price ? money(amount) : "";
@@ -53,7 +54,7 @@
       if (price && data.price) price.value = data.price;
       if (qty && !qty.value) qty.value = "1";
       var hint = row.querySelector("[data-stock-hint]");
-      if (hint) hint.textContent = data.stock !== "" && data.stock !== undefined ? parseFloat(data.stock) + " " + data.unit + " in stock" : "";
+      if (hint) hint.textContent = data.stock !== "" && data.stock !== undefined ? parseFloat(data.stock) + " " + data.unit + " in stock here" : "";
       recalc();
       if (qty) qty.focus();
     };

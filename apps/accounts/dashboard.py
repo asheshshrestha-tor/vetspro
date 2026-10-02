@@ -21,7 +21,7 @@ class StaffUserModule(Module):
     menu_order = 10
     show_on_home = False
 
-    list_display = ["username", "full_name", "role", "designation", "attends", "is_active"]
+    list_display = ["username", "full_name", "role", "branch_names", "attends", "is_active"]
     search_fields = ["username", "first_name", "last_name", "email", "staff_profile__phone"]
     list_filter = ["staff_profile__role", "is_active"]
     form_class = StaffUserForm
@@ -32,6 +32,7 @@ class StaffUserModule(Module):
         return (
             User.objects.filter(is_staff=True)
             .select_related("staff_profile__role")
+            .prefetch_related("staff_profile__branches")
             .order_by("-is_active", "first_name", "username")
         )
 
@@ -54,6 +55,14 @@ class StaffUserModule(Module):
         return profile.role.name if profile and profile.role else ""
 
     role.short_description = "Role"
+
+    def branch_names(self, obj):
+        profile = getattr(obj, "staff_profile", None)
+        if obj.is_superuser or (profile and profile.all_branches):
+            return "All branches"
+        return ", ".join(b.name for b in profile.branches.all()) if profile else ""
+
+    branch_names.short_description = "Branches"
 
     def designation(self, obj):
         profile = getattr(obj, "staff_profile", None)

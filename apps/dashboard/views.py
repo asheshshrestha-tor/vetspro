@@ -71,7 +71,7 @@ class HomeView(StaffRequiredMixin, TemplateView):
         visible = site.modules(user)
 
         cards = [
-            {"module": module, "count": module.get_queryset().count()}
+            {"module": module, "count": module.queryset_for(self.request).count()}
             for modules in site.grouped(user).values()
             for module in modules
             if not module.singleton and module.show_on_home
@@ -197,7 +197,7 @@ class ModuleListView(ModuleMixin, TemplateView):
 
     def get_queryset(self, filters, date_range):
         module = self.module
-        queryset = module.get_queryset()
+        queryset = module.queryset_for(self.request)
 
         related = []
         for name in module.list_display:
@@ -292,7 +292,7 @@ class ModuleFormView(ModuleMixin, TemplateView):
         if pk is None:
             self.require(self.module.user_can_add(self.request.user))
             return None
-        return get_object_or_404(self.module.get_queryset(), pk=pk)
+        return get_object_or_404(self.module.access_queryset(self.request), pk=pk)
 
     @property
     def read_only(self):
@@ -334,6 +334,7 @@ class ModuleFormView(ModuleMixin, TemplateView):
                 saved = form.save(commit=False)
                 formsets = build_inline_formsets(self.module, saved, request.POST, request.FILES)
                 if all(formset.is_valid() for formset in formsets):
+                    self.module.assign_branch(request, saved)
                     self.module.save_model(request, saved, form, change=self.object is not None)
                     saved.save()
                     form.save_m2m()
@@ -359,6 +360,7 @@ class ModuleFormView(ModuleMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["object"] = self.object
+        context.update(self.module.extra_context(self.request, self.object))
         if self.object is not None:
             context["can_delete"] = context["can_delete"] and self.module.has_object_permission(
                 self.request.user, self.object, "delete"
@@ -377,7 +379,7 @@ class ModuleDeleteView(ModuleMixin, TemplateView):
 
     def get_object(self):
         self.require(self.module.user_can_delete(self.request.user))
-        obj = get_object_or_404(self.module.get_queryset(), pk=self.kwargs["pk"])
+        obj = get_object_or_404(self.module.access_queryset(self.request), pk=self.kwargs["pk"])
         self.require(self.module.has_object_permission(self.request.user, obj, "delete"))
         return obj
 
@@ -408,7 +410,7 @@ class ModuleToggleView(ModuleMixin, View):
         if field not in self.module.toggle_fields:
             raise Http404("This field cannot be toggled.")
 
-        obj = get_object_or_404(self.module.get_queryset(), pk=kwargs["pk"])
+        obj = get_object_or_404(self.module.access_queryset(self.request), pk=kwargs["pk"])
         self.require(self.module.has_object_permission(request.user, obj, "change"))
         setattr(obj, field, not getattr(obj, field))
         obj.save(update_fields=[field] + (["updated_at"] if hasattr(obj, "updated_at") else []))
@@ -434,7 +436,7 @@ class AutocompleteView(ModuleMixin, View):
 
         queryset = module.apply_search(queryset, request.GET.get("q", "").strip())
         results = [
-            {**module.autocomplete_data(obj), "id": obj.pk, "text": module.autocomplete_label(obj)}
+            {**module.autocomplete_data(obj, request), "id": obj.pk, "text": module.autocomplete_label(obj, request)}
             for obj in queryset[: self.limit]
         ]
         return JsonResponse({"results": results})

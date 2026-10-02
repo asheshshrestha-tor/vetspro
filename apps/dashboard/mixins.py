@@ -14,10 +14,16 @@ class StaffRequiredMixin(AccessMixin):
             return self.handle_no_permission()
         if not (request.user.is_active and request.user.is_staff):
             return self.forbidden(request)
+        from apps.branches.context import BranchRequired, allowed_branches
+
+        if not allowed_branches(request):
+            return render(request, "branches/no_branch.html", status=403)
         try:
             return super().dispatch(request, *args, **kwargs)
         except PermissionDenied:
             return self.forbidden(request)
+        except BranchRequired:
+            return render(request, "branches/choose_branch.html", {"branches": allowed_branches(request)})
 
     def forbidden(self, request):
         return render(request, "dashboard/403.html", status=403)

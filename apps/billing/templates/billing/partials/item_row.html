@@ -4,11 +4,12 @@
     {{ form.product }}
     <div class="mt-2">{{ form.description }}</div>
     {% for error in form.description.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
-    <div class="text-muted fs-8 mt-1" data-stock-hint>{% if form.instance.product and form.instance.product.track_stock %}{{ form.instance.product.stock_quantity|qty }} {{ form.instance.product.unit }} in stock{% endif %}</div>
+    <div class="text-muted fs-8 mt-1" data-stock-hint>{% if form.instance.product and form.instance.product.track_stock %}{{ form.instance.product|stock_at:form.instance.invoice.branch|qty }} {{ form.instance.product.unit }} in stock here{% endif %}</div>
     {% for error in form.product.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}
   </td>
   <td>{{ form.quantity }}{% for error in form.quantity.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
   <td>{{ form.unit_price }}{% for error in form.unit_price.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
+  <td>{{ form.discount_percent }}{% for error in form.discount_percent.errors %}<div class="invalid-feedback d-block">{{ error }}</div>{% endfor %}</td>
   <td class="text-end fw-bold text-gray-800" data-line-total></td>
   <td class="text-end">
     {% for hidden in form.hidden_fields %}{{ hidden }}{% endfor %}

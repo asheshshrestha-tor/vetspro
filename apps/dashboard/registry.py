@@ -30,6 +30,7 @@ class Inline:
     title = ""
     extra = 1
     form_class = None
+    fk_name = None  # when the child has more than one link to the parent
 
     def get_title(self):
         return self.title or self.model._meta.verbose_name_plural.capitalize()
@@ -89,6 +90,13 @@ class Module:
     autocomplete_filters = []
     # Boolean fields that can be switched on and off straight from the list.
     toggle_fields = []
+
+    # Where the record's branch is, e.g. "branch" or "appointment__branch". Records of a
+    # module with a branch are only listed for the branch being worked in, and only
+    # opened by people who work at their branch. Blank means shared by all branches.
+    branch_field = ""
+    # Records without a branch (e.g. a website message) are shown in every branch.
+    branch_optional = False
 
     # Custom templates for the generic pages.
     list_template = ""
@@ -150,17 +158,49 @@ class Module:
         return queryset.filter(reduce(or_, conditions)).distinct()
 
     def autocomplete_queryset(self, request):
-        queryset = self.get_queryset()
+        queryset = self.queryset_for(request)
         if any(f.name == "is_active" for f in self.opts.fields):
             queryset = queryset.filter(is_active=True)
         return queryset
 
-    def autocomplete_label(self, obj):
+    def autocomplete_label(self, obj, request=None):
         return str(obj)
 
-    def autocomplete_data(self, obj):
+    def autocomplete_data(self, obj, request=None):
         """Extra values sent with each search result, e.g. a product's price."""
         return {}
+
+    def branch_condition(self, ids):
+        """Which rows belong to these branches. None means the module is not split by branch."""
+        if not self.branch_field:
+            return None
+        condition = Q(**{f"{self.branch_field}__in": ids})
+        if self.branch_optional:
+            condition |= Q(**{f"{self.branch_field}__isnull": True})
+        return condition
+
+    def _branch_filter(self, queryset, ids):
+        condition = self.branch_condition(list(ids))
+        return queryset if condition is None else queryset.filter(condition)
+
+    def queryset_for(self, request):
+        """Records listed for the branch being worked in (or all of the person's branches)."""
+        from apps.branches.context import scope_ids
+
+        return self._branch_filter(self.get_queryset(), scope_ids(request))
+
+    def access_queryset(self, request):
+        """Records this person may open: those at any branch they work at."""
+        from apps.branches.context import allowed_ids
+
+        return self._branch_filter(self.get_queryset(), allowed_ids(request))
+
+    def assign_branch(self, request, obj):
+        """New records of a module with a branch are created in the branch being worked in."""
+        if self.branch_field == "branch" and getattr(obj, "branch_id", None) is None:
+            from apps.branches.context import require_branch
+
+            obj.branch = require_branch(request)
 
     def get_singleton(self):
         return self.model.load()
@@ -183,13 +223,13 @@ class Module:
     def after_save(self, request, obj, form, change):
         """Called once the object and its inline rows are saved."""
 
-    def badge_count(self):
+    def badge_count(self, request=None):
         """Number shown next to the module in the menu. None shows nothing."""
         return None
 
-    def menu_items(self):
+    def menu_items(self, request=None):
         """Links shown in the side menu. Extra items can point at the module's own pages."""
-        return [{"title": self.title, "url": self.list_url, "icon": self.icon, "badge": self.badge_count(), "url_names": []}]
+        return [{"title": self.title, "url": self.list_url, "icon": self.icon, "badge": self.badge_count(request), "url_names": []}]
 
     def row_actions(self, obj, request):
         """Extra buttons for a row in the list."""
@@ -229,6 +269,10 @@ class Module:
 
     def user_can_delete(self, user):
         return self.can_delete and not self.singleton and self._has_perm(user, "delete")
+
+    def extra_context(self, request, obj):
+        """More template context for the record's form or detail page."""
+        return {}
 
     def has_object_permission(self, user, obj, action):
         """Per-record rule on top of the model permissions. action is "change" or "delete"."""

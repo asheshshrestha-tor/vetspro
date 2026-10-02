@@ -7,6 +7,7 @@ from django.views import View
 from django.views.generic import TemplateView
 
 from apps.appointments.models import Appointment
+from apps.branches.context import allowed_ids, require_branch
 from apps.clients.models import Client
 from apps.dashboard.mixins import ModuleMixin
 
@@ -22,8 +23,12 @@ class InvoicePage(ModuleMixin):
         super().setup(request, *args, **kwargs)
 
     def get_invoice(self):
+        # Only bills of the person's branches can be opened.
         return get_object_or_404(
-            Invoice.objects.select_related("client", "appointment__pet", "created_by", "issued_by"), pk=self.kwargs["pk"]
+            Invoice.objects.filter(branch_id__in=allowed_ids(self.request)).select_related(
+                "branch", "client", "appointment__pet", "created_by", "issued_by"
+            ),
+            pk=self.kwargs["pk"],
         )
 
 
@@ -34,6 +39,7 @@ class NewSaleView(InvoicePage, TemplateView):
 
     def get(self, request, *args, **kwargs):
         self.require(self.module.user_can_add(request.user))
+        require_branch(request)
         initial = {}
         client_id = request.GET.get("client", "")
         if client_id.isdigit() and Client.objects.filter(pk=client_id).exists():
@@ -48,6 +54,7 @@ class NewSaleView(InvoicePage, TemplateView):
         data = form.cleaned_data
         invoice = new_invoice(
             request.user,
+            require_branch(request),
             client=data.get("client"),
             customer_name=data.get("customer_name", "").strip(),
             customer_phone=data.get("customer_phone", "").strip(),
@@ -179,8 +186,33 @@ class InvoicePrintView(InvoicePage, TemplateView):
         context = super().get_context_data(**kwargs)
         context.update(
             invoice=self.invoice,
-            items=self.invoice.items.all(),
+            branch=self.invoice.branch,
+            items=self.invoice.items.select_related("product"),
             payments=self.invoice.payments.all(),
+            has_discounts=self.invoice.items.exclude(discount_percent=0).exists(),
+        )
+        return context
+
+
+class PaymentReceiptView(InvoicePage, TemplateView):
+    """A printed receipt for one payment."""
+
+    template_name = "billing/receipt.html"
+
+    def get(self, request, *args, **kwargs):
+        self.invoice = self.get_invoice()
+        self.require(self.module.can_view(request.user))
+        self.payment = get_object_or_404(self.invoice.payments.select_related("received_by"), pk=kwargs["payment_pk"])
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        paid_before = sum(p.amount for p in self.invoice.payments.all() if (p.received_at, p.pk) < (self.payment.received_at, self.payment.pk))
+        context.update(
+            invoice=self.invoice,
+            branch=self.invoice.branch,
+            payment=self.payment,
+            balance_after=max(self.invoice.total - paid_before - self.payment.amount, 0),
         )
         return context
 
@@ -191,7 +223,10 @@ class VisitInvoiceView(InvoicePage, View):
     http_method_names = ["post"]
 
     def post(self, request, *args, **kwargs):
-        visit = get_object_or_404(Appointment.objects.select_related("client"), pk=kwargs["appointment_pk"])
+        visit = get_object_or_404(
+            Appointment.objects.filter(branch_id__in=allowed_ids(request)).select_related("branch", "client"),
+            pk=kwargs["appointment_pk"],
+        )
         existing = current_visit_bill(visit)
         if existing is not None and not existing.is_draft:
             self.require(self.module.can_view(request.user))

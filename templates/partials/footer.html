@@ -25,6 +25,7 @@
         <li><a href="{% url 'team:list' %}">Our team</a></li>
         <li><a href="{% url 'faq:list' %}">FAQ</a></li>
         <li><a href="{% url 'gallery:list' %}">Gallery</a></li>
+        {% if branch_count > 1 %}<li><a href="{% url 'branches:list' %}">Our branches</a></li>{% endif %}
       </ul>
     </div>
 

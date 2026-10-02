@@ -11,6 +11,11 @@
       <div class="card-body pt-4">
         <div class="fs-2hx fw-bold text-gray-900 lh-1 mb-1">{{ panel.total }}</div>
         <div class="fw-semibold text-gray-600 mb-6">visit{{ panel.total|pluralize }} registered</div>
+        {% if panel.emergencies %}
+          <a href="{% url 'dashboard:appointment_queue' %}?view=board" class="d-flex align-items-center bg-light-danger rounded p-3 mb-5 text-danger fw-bold">
+            <i class="ki-outline ki-information-5 fs-2 text-danger me-2"></i>{{ panel.emergencies }} emergency / urgent case{{ panel.emergencies|pluralize }} in the queue
+          </a>
+        {% endif %}
         {% for item in panel.counts %}
           <div class="d-flex align-items-center mb-3">
             <span class="bullet bullet-dot bg-{{ item.color }} me-3 h-10px w-10px"></span>
@@ -30,7 +35,7 @@
     <div class="card card-flush h-100">
       <div class="card-header pt-7">
         <h2 class="card-title align-items-start flex-column">
-          <span class="card-label fw-bold text-gray-900 fs-3">Follow-ups due</span>
+          <span class="card-label fw-bold text-gray-900 fs-3">Bookings &amp; follow-ups due</span>
           <span class="text-gray-500 mt-1 fw-semibold fs-6">Today and missed</span>
         </h2>
       </div>
@@ -39,7 +44,7 @@
           <a href="{{ visit.get_absolute_url }}" class="d-flex align-items-center mb-5 text-gray-800 text-hover-primary">
             <div class="flex-grow-1">
               <div class="fw-bold">{{ visit.pet.name }} <span class="text-muted fw-semibold">· {{ visit.client.full_name }}</span></div>
-              <div class="text-muted fs-7">{{ visit.client.phone }}</div>
+              <div class="text-muted fs-7">{{ visit.client.phone }}{% if visit.scheduled_time %} · {{ visit.scheduled_time|time:"H:i" }}{% endif %}{% if panel.show_branch %} · {{ visit.branch.name }}{% endif %}</div>
             </div>
             {% if visit.visit_date < panel.today %}
               <span class="badge badge-light-danger">Missed {{ visit.visit_date|date:"j M" }}</span>

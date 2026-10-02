@@ -1,7 +1,19 @@
-from apps.dashboard.forms import DashboardModelForm
-from apps.dashboard.registry import Module, site
+from django.urls import reverse
 
-from .models import ExaminationType, HistoryOption, Species, ValueDefinition, VaccinationType
+from apps.dashboard.forms import AutocompleteSelect, DashboardModelForm
+from apps.dashboard.registry import Inline, Module, site
+
+from .models import (
+    ExaminationType,
+    HistoryOption,
+    PlanDose,
+    Species,
+    TreatmentTemplate,
+    TreatmentTemplateLine,
+    ValueDefinition,
+    VaccinationPlan,
+    VaccinationType,
+)
 
 DEFINITION_FIELDS = [
     "name", "value_kind", "unit", "min_value", "max_value", "options", "normal_options", "description", "order",
@@ -127,3 +139,79 @@ class VaccinationTypeModule(LookupModule):
     menu_order = 40
     list_display = ["name", "booster_interval_days", "order", "is_active"]
     fields = ["name", "booster_interval_days", "description", "order", "is_active"]
+
+
+class TemplateLineForm(DashboardModelForm):
+    class Meta:
+        model = TreatmentTemplateLine
+        fields = ["item", "dose", "frequency", "duration", "quantity"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.shop.models import Product
+
+        field = self.fields["item"]
+        field.queryset = Product.objects.exclude(treatment_kind="")
+        widget = AutocompleteSelect(reverse("dashboard:autocomplete", args=["shop", "treatmentitem"]), placeholder="Search the catalogue")
+        widget.choices = field.choices
+        widget.attrs["class"] = "form-select form-select-solid"
+        field.widget = widget
+        self.fields["quantity"].widget.attrs.update({"step": "any", "min": "0"})
+
+
+class TemplateLineInline(Inline):
+    model = TreatmentTemplateLine
+    fields = ["item", "dose", "frequency", "duration", "quantity"]
+    title = "Treatment lines"
+    form_class = TemplateLineForm
+    extra = 3
+
+
+@site.register(TreatmentTemplate)
+class TreatmentTemplateModule(LookupModule):
+    icon = "ki-note-2"
+    description = (
+        "Usual treatments for common conditions. In a visit's Diagnosis & treatment tab, choosing a template "
+        "adds all its lines at once; each can still be changed for the pet."
+    )
+    menu_order = 6
+    list_display = ["name", "diagnosis", "line_count", "order", "is_active"]
+    fields = ["name", "diagnosis", "description", "order", "is_active"]
+    inlines = [TemplateLineInline]
+
+    def get_queryset(self):
+        return TreatmentTemplate.objects.prefetch_related("lines")
+
+    def line_count(self, obj):
+        return len(obj.lines.all())
+
+    line_count.short_description = "Lines"
+
+
+class PlanDoseInline(Inline):
+    model = PlanDose
+    fields = ["vaccine", "label", "days_after_start"]
+    title = "Doses"
+    extra = 3
+
+
+@site.register(VaccinationPlan)
+class VaccinationPlanModule(LookupModule):
+    icon = "ki-calendar-tick"
+    description = (
+        "Vaccination schedules, e.g. puppy or kitten core vaccines. Put a pet on a plan from its record; "
+        "each dose then shows as due and is ticked off when the vaccine is recorded in a visit."
+    )
+    menu_order = 45
+    list_display = ["name", "species", "dose_count", "order", "is_active"]
+    fields = ["name", "species", "description", "order", "is_active"]
+    inlines = [PlanDoseInline]
+
+    def get_queryset(self):
+        return VaccinationPlan.objects.select_related("species").prefetch_related("doses")
+
+    def dose_count(self, obj):
+        return len(obj.doses.all())
+
+    dose_count.short_description = "Doses"
+

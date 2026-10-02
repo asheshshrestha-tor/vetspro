@@ -19,15 +19,19 @@ from apps.dashboard.views import safe_next
 
 from . import permissions as perms
 from .forms import ClinicalForm, TreatmentFormSet, VisitForm, WalkInForm
-from .models import Appointment, can_attend
+from .models import Appointment, apply_treatment_template, can_attend
+from apps.branches.context import allowed_ids, current_branch, is_all_mode, require_branch, scope_ids
 from .records import build_grids, field_list, grids_have_input, save_grids
 
 
-def queue_url(day=None):
+def queue_url(day=None, board=False):
     url = reverse("dashboard:appointment_queue")
+    params = []
     if day and day != timezone.localdate():
-        url += f"?date={day.isoformat()}"
-    return url
+        params.append(f"date={day.isoformat()}")
+    if board:
+        params.append("view=board")
+    return url + ("?" + "&".join(params) if params else "")
 
 
 def status_actions(appointment, user, in_queue=False):
@@ -67,9 +71,11 @@ class AppointmentPage(ModuleMixin):
         super().setup(request, *args, **kwargs)
 
     def get_appointment(self):
+        # Only visits at the person's branches can be opened.
         return get_object_or_404(
-            Appointment.objects.select_related(
-                "client", "pet__species", "attended_by__staff_profile", "created_by", "updated_by", "follow_up_of"
+            Appointment.objects.filter(branch_id__in=allowed_ids(self.request)).select_related(
+                "branch", "client", "pet__species", "attended_by__staff_profile", "created_by", "updated_by",
+                "follow_up_of",
             ),
             pk=self.kwargs["pk"],
         )
@@ -91,10 +97,12 @@ class QueueView(AppointmentPage, TemplateView):
         day = self.get_day()
         today = timezone.localdate()
 
+        branch_ids = scope_ids(self.request)
         visits = (
             Appointment.objects.on(day)
-            .select_related("client", "pet__species", "attended_by")
-            .order_by("token", "arrival_time", "id")
+            .filter(branch_id__in=branch_ids)
+            .select_related("branch", "client", "pet__species", "attended_by")
+            .order_by("scheduled_time", "token", "arrival_time", "id")
         )
         rows = {status: [] for status, _ in Appointment.STATUS_CHOICES}
         for visit in visits:
@@ -104,23 +112,42 @@ class QueueView(AppointmentPage, TemplateView):
         overdue = []
         if day == today:
             for visit in (
-                Appointment.objects.filter(status=Appointment.SCHEDULED, visit_date__lt=today)
-                .select_related("client", "pet__species", "attended_by")
+                Appointment.objects.filter(status=Appointment.SCHEDULED, visit_date__lt=today, branch_id__in=branch_ids)
+                .select_related("branch", "client", "pet__species", "attended_by")
                 .order_by("visit_date")
             ):
                 overdue.append({"visit": visit, "actions": status_actions(visit, user, in_queue=True)})
 
         counts = dict(visits.values_list("status").annotate(total=Count("id")))
+        board = self.request.GET.get("view") == "board"
         context.update(
             day=day,
             is_today=day == today,
-            previous_day=queue_url(day - datetime.timedelta(days=1)),
-            next_day=queue_url(day + datetime.timedelta(days=1)),
-            today_url=queue_url(),
+            previous_day=queue_url(day - datetime.timedelta(days=1), board),
+            next_day=queue_url(day + datetime.timedelta(days=1), board),
+            today_url=queue_url(board=board),
+            list_url=queue_url(day),
+            board_url=queue_url(day, board=True),
+            # With the vet first; then waiting pets by triage (emergency first) and token.
             in_queue_sorted=sorted(
                 rows[Appointment.IN_CONSULTATION] + rows[Appointment.WAITING],
-                key=lambda row: (row["visit"].status != Appointment.IN_CONSULTATION, row["visit"].token or 0),
+                key=lambda row: (
+                    row["visit"].status != Appointment.IN_CONSULTATION,
+                    Appointment.PRIORITY_RANK.get(row["visit"].priority, 9),
+                    row["visit"].token or 0,
+                ),
             ),
+            board=board,
+            board_columns=[
+                ("Waiting", "warning", sorted(
+                    rows[Appointment.WAITING],
+                    key=lambda row: (Appointment.PRIORITY_RANK.get(row["visit"].priority, 9), row["visit"].token or 0),
+                )),
+                ("In consultation", "primary", rows[Appointment.IN_CONSULTATION]),
+                ("Completed", "success", rows[Appointment.COMPLETED]),
+            ],
+            show_branch=is_all_mode(self.request),
+            branch=current_branch(self.request),
             scheduled=rows[Appointment.SCHEDULED],
             overdue=overdue,
             finished=rows[Appointment.COMPLETED] + rows[Appointment.CANCELLED],
@@ -138,9 +165,9 @@ class WalkInView(AppointmentPage, TemplateView):
     template_name = "appointments/walk_in.html"
 
     def get_initial(self):
-        initial = {"visit_date": timezone.localdate()}
+        initial = {"visit_date": parse_date(self.request.GET.get("date") or "") or timezone.localdate()}
         user = self.request.user
-        if can_attend(user):
+        if can_attend(user, self.branch):
             initial["attended_by"] = user.pk
         client_id, pet_id = self.request.GET.get("client"), self.request.GET.get("pet")
         pet = Pet.objects.filter(pk=pet_id, is_active=True).first() if pet_id and pet_id.isdigit() else None
@@ -152,12 +179,14 @@ class WalkInView(AppointmentPage, TemplateView):
 
     def get(self, request, *args, **kwargs):
         self.require(self.module.user_can_add(request.user))
-        form = WalkInForm(initial=self.get_initial(), request=request)
+        self.branch = require_branch(request)
+        form = WalkInForm(initial=self.get_initial(), request=request, branch=self.branch)
         return self.render_to_response(self.get_context_data(form=form))
 
     def post(self, request, *args, **kwargs):
         self.require(self.module.user_can_add(request.user))
-        form = WalkInForm(request.POST, request=request)
+        self.branch = require_branch(request)
+        form = WalkInForm(request.POST, request=request, branch=self.branch)
         if not form.is_valid():
             messages.error(request, "Please correct the errors below.")
             return self.render_to_response(self.get_context_data(form=form))
@@ -168,10 +197,13 @@ class WalkInView(AppointmentPage, TemplateView):
             client = form.build_client(request.user)
             pet = form.build_pet(client)
             visit = Appointment(
+                branch=self.branch,
                 client=client,
                 pet=pet,
                 visit_date=data["visit_date"],
                 status=Appointment.WAITING if data["visit_date"] == today else Appointment.SCHEDULED,
+                scheduled_time=data.get("scheduled_time") if data["visit_date"] != today else None,
+                priority=data.get("priority") or Appointment.ROUTINE,
                 reason=data["reason"].strip(),
                 attended_by=data.get("attended_by"),
                 weight_kg=data.get("weight_kg"),
@@ -184,7 +216,8 @@ class WalkInView(AppointmentPage, TemplateView):
                 visit.apply("start", user=request.user)
 
         if visit.status == Appointment.SCHEDULED:
-            messages.success(request, f"{pet.name} is booked for {visit.visit_date:%d %b %Y} ({visit.number}).")
+            when = f"{visit.visit_date:%d %b %Y}" + (f" at {visit.scheduled_time:%H:%M}" if visit.scheduled_time else "")
+            messages.success(request, f"{pet.name} is booked for {when} ({visit.number}).")
             return redirect(queue_url(visit.visit_date))
         messages.success(request, f"Token {visit.token}: {pet.name} ({client.full_name}) is in the queue.")
         if visit.status == Appointment.IN_CONSULTATION:
@@ -196,7 +229,14 @@ class WalkInView(AppointmentPage, TemplateView):
         form = context["form"]
         context["duplicates"] = list(form.duplicates[:5]) if form.is_bound else []
         context["can_start"] = self.request.user.has_perm("appointments.change_appointment")
+        context["branch"] = self.branch
         return context
+
+
+def document_context(request, pet, visit):
+    from apps.clients.views import document_context as build
+
+    return build(request, pet, visit)
 
 
 class ConsultationView(AppointmentPage, TemplateView):
@@ -258,6 +298,16 @@ class ConsultationView(AppointmentPage, TemplateView):
             if complete:
                 visit.apply("complete", user=request.user)
 
+        template_id = request.POST.get("_template", "")
+        if template_id.isdigit() and self.can_edit_clinical and not complete:
+            from apps.clinic_setup.models import TreatmentTemplate
+
+            template = TreatmentTemplate.objects.filter(pk=template_id, is_active=True).first()
+            if template is not None:
+                added = apply_treatment_template(visit, template)
+                messages.success(request, f"“{template}” added {added} treatment line{'s' if added != 1 else ''}. Adjust them for {visit.pet.name} and save.")
+                return redirect(visit.get_absolute_url() + "#result")
+
         bill = "_bill" in request.POST
         invoice = self.update_bill(visit, explicit=bill) if (bill or complete) else None
 
@@ -280,7 +330,6 @@ class ConsultationView(AppointmentPage, TemplateView):
         runs quietly, and only when there is something to charge and the bill is still a draft.
         """
         from apps.billing.services import build_visit_bill, current_visit_bill
-        from apps.core.models import SiteSettings
 
         request = self.request
         existing = current_visit_bill(visit)
@@ -292,7 +341,7 @@ class ConsultationView(AppointmentPage, TemplateView):
         if not explicit:
             if existing is not None and not existing.is_draft:
                 return None
-            fee = SiteSettings.load().visit_fee_item
+            fee = visit.branch.effective_visit_fee_item
             has_charges = visit.treatments.filter(unit_price__gt=0, quantity__gt=0).exists() or (fee and fee.is_active)
             if existing is None and not has_charges:
                 return None
@@ -358,8 +407,16 @@ class ConsultationView(AppointmentPage, TemplateView):
             can_bill=user.has_perm("billing.add_invoice") or user.has_perm("billing.view_invoice"),
             can_create_bill=user.has_perm("billing.add_invoice"),
             back_url=safe_next(self.request, queue_url(visit.visit_date)),
+            **document_context(self.request, visit.pet, visit),
+            treatment_templates=self.treatment_templates() if self.can_edit_clinical else [],
         )
         return context
+
+    @staticmethod
+    def treatment_templates():
+        from apps.clinic_setup.models import TreatmentTemplate
+
+        return TreatmentTemplate.objects.filter(is_active=True).exclude(lines=None).distinct()
 
 
 class StatusView(AppointmentPage, View):
@@ -455,3 +512,45 @@ class VisitFormPrintView(AppointmentPage, TemplateView):
             printed_at=timezone.localtime(),
         )
         return context
+
+
+class BookingsView(AppointmentPage, TemplateView):
+    """Booked visits for a week, day by day and in time order."""
+
+    template_name = "appointments/bookings.html"
+
+    def get(self, request, *args, **kwargs):
+        self.require(self.module.can_view(request.user))
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        today = timezone.localdate()
+        start = parse_date(self.request.GET.get("week") or "") or today
+        start -= datetime.timedelta(days=start.weekday())
+        days = [start + datetime.timedelta(days=i) for i in range(7)]
+        bookings = (
+            Appointment.objects.filter(
+                branch_id__in=scope_ids(self.request), visit_date__range=(days[0], days[-1]),
+                status__in=[Appointment.SCHEDULED, Appointment.WAITING, Appointment.IN_CONSULTATION, Appointment.COMPLETED],
+            )
+            .exclude(scheduled_time__isnull=True, status__in=[Appointment.WAITING, Appointment.IN_CONSULTATION, Appointment.COMPLETED])
+            .select_related("branch", "client", "pet__species", "attended_by")
+            .order_by("visit_date", "scheduled_time", "id")
+        )
+        by_day = {day: [] for day in days}
+        for visit in bookings:
+            by_day[visit.visit_date].append(visit)
+        week_url = reverse("dashboard:appointment_bookings")
+        context.update(
+            days=[{"date": day, "is_today": day == today, "visits": by_day[day]} for day in days],
+            start=days[0],
+            end=days[-1],
+            previous_week=f"{week_url}?week={(start - datetime.timedelta(days=7)).isoformat()}",
+            next_week=f"{week_url}?week={(start + datetime.timedelta(days=7)).isoformat()}",
+            this_week=week_url,
+            show_branch=is_all_mode(self.request),
+            total=len(bookings),
+        )
+        return context
+

@@ -1,0 +1,24 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Choose a branch{% endblock %}
+{% block heading %}Choose a branch{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-body p-10 text-center">
+      <i class="ki-outline ki-geolocation text-primary fs-5tx mb-5"></i>
+      <h2 class="fw-bold text-gray-900 mb-3">Which branch is this for?</h2>
+      <p class="text-gray-600 fw-semibold fs-6 mb-8">You are viewing all your branches. Pick the branch to work in, then try again.</p>
+      <div class="d-flex flex-wrap justify-content-center gap-3">
+        {% for branch in branches %}
+          <form method="post" action="{% url 'dashboard:branch_switch' %}">
+            {% csrf_token %}
+            <input type="hidden" name="branch" value="{{ branch.pk }}">
+            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+            <button type="submit" class="btn btn-light-primary">{{ branch.name }}</button>
+          </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

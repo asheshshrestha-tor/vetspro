@@ -43,6 +43,7 @@
         <li><a href="{% url 'shop:list' %}" {% if app == "shop" %}class="is-active"{% endif %}>Shop</a></li>
         <li><a href="{% url 'faq:list' %}" {% if app == "faq" %}class="is-active"{% endif %}>FAQ</a></li>
         <li><a href="{% url 'gallery:list' %}" {% if app == "gallery" %}class="is-active"{% endif %}>Gallery</a></li>
+        {% if branch_count > 1 %}<li><a href="{% url 'branches:list' %}" {% if app == "branches" %}class="is-active"{% endif %}>Branches</a></li>{% endif %}
         <li><a class="btn btn--primary btn--small" href="{% url 'contact:contact' %}">Contact</a></li>
       </ul>
     </nav>

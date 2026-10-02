@@ -28,7 +28,8 @@ class Invoice(TimeStampedModel):
     STATUS_CHOICES = [(DRAFT, "Draft"), (ISSUED, "Issued"), (PAID, "Paid"), (CANCELLED, "Cancelled")]
     STATUS_COLORS = {DRAFT: "secondary", ISSUED: "warning", PAID: "success", CANCELLED: "danger"}
 
-    number = models.CharField("invoice no.", max_length=20, blank=True, editable=False)
+    number = models.CharField("invoice no.", max_length=30, blank=True, editable=False)
+    branch = models.ForeignKey("branches.Branch", related_name="invoices", on_delete=models.PROTECT)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=DRAFT, db_index=True)
     invoice_date = models.DateField(default=timezone.localdate, db_index=True)
 
@@ -71,6 +72,14 @@ class Invoice(TimeStampedModel):
 
     def get_absolute_url(self):
         return reverse("dashboard:edit", args=["billing", "invoice", self.pk])
+
+    def save(self, *args, **kwargs):
+        if self.branch_id is None:
+            # Bills made outside the screens: the visit's branch, or the main branch.
+            from apps.branches.models import Branch
+
+            self.branch_id = self.appointment.branch_id if self.appointment_id else Branch.main().pk
+        super().save(*args, **kwargs)
 
     @property
     def display_number(self):
@@ -128,21 +137,35 @@ class Invoice(TimeStampedModel):
     # Issuing and cancelling
 
     def _next_number(self):
-        prefix = f"INV-{self.invoice_date.year}-"
+        # Each branch numbers its own bills, e.g. INV-CBL-2026-00012.
+        prefix = f"INV-{self.branch.code}-{self.invoice_date.year}-"
         last = Invoice.objects.filter(number__startswith=prefix).aggregate(last=Max("number"))["last"]
         return f"{prefix}{(int(last.rsplit('-', 1)[1]) + 1) if last else 1:05d}"
 
+    def stock_lines(self):
+        """(product, quantity) taken from stock by this bill; a package takes its contents."""
+        lines = []
+        for item in self.items.select_related("product"):
+            product = item.product
+            if product is None:
+                continue
+            if product.is_package:
+                for part in product.package_items.select_related("component"):
+                    if part.component.track_stock:
+                        lines.append((part.component, part.quantity * item.quantity))
+            elif product.track_stock:
+                lines.append((product, item.quantity))
+        return lines
+
     def issue(self, user):
-        """Finalise the bill: take the items out of stock and give it the next number."""
+        """Finalise the bill: take the items out of the branch's stock and give it the next number."""
         if not self.is_draft:
             raise ValidationError("Only a draft can be issued.")
-        items = list(self.items.select_related("product"))
-        if not items:
+        if not self.items.exists():
             raise ValidationError("Add at least one item before issuing the invoice.")
         with transaction.atomic():
-            for item in items:
-                if item.product_id and item.product.track_stock:
-                    change_stock(item.product, -item.quantity, StockMovement.SALE, user=user, invoice=self)
+            for product, quantity in self.stock_lines():
+                change_stock(product, -quantity, StockMovement.SALE, user=user, invoice=self, branch=self.branch)
             self.invoice_date = timezone.localdate()
             self.issued_at = timezone.now()
             self.issued_by = user
@@ -163,9 +186,10 @@ class Invoice(TimeStampedModel):
         if self.status not in (self.ISSUED, self.PAID):
             raise ValidationError("Only an issued invoice can be cancelled.")
         with transaction.atomic():
-            for item in self.items.select_related("product"):
-                if item.product_id and item.product.track_stock:
-                    change_stock(item.product, item.quantity, StockMovement.SALE_CANCELLED, user=user, invoice=self)
+            for product, quantity in self.stock_lines():
+                change_stock(
+                    product, quantity, StockMovement.SALE_CANCELLED, user=user, invoice=self, branch=self.branch
+                )
             self.status = self.CANCELLED
             self.cancelled_at = timezone.now()
             self.cancel_reason = reason[:255]
@@ -204,6 +228,7 @@ class InvoiceItem(models.Model):
     description = models.CharField(max_length=200)
     quantity = models.DecimalField(max_digits=10, decimal_places=2, default=1)
     unit_price = models.DecimalField("price", max_digits=10, decimal_places=2)
+    discount_percent = models.DecimalField("discount %", max_digits=5, decimal_places=2, default=ZERO)
     line_total = models.DecimalField("amount", max_digits=12, decimal_places=2, editable=False, default=ZERO)
 
     class Meta:
@@ -212,8 +237,17 @@ class InvoiceItem(models.Model):
     def __str__(self):
         return self.description
 
+    @property
+    def gross(self):
+        return money(self.quantity * self.unit_price)
+
+    @property
+    def discount_amount(self):
+        return self.gross - self.line_total
+
     def save(self, *args, **kwargs):
-        self.line_total = money(self.quantity * self.unit_price)
+        discount = min(max(Decimal(self.discount_percent or 0), ZERO), Decimal(100))
+        self.line_total = money(self.quantity * self.unit_price * (100 - discount) / 100)
         super().save(*args, **kwargs)
 
 
@@ -240,3 +274,7 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.amount} ({self.get_method_display()})"
+
+    @property
+    def receipt_number(self):
+        return f"RCT-{self.pk:06d}"

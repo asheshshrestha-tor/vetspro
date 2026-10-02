@@ -1,0 +1,37 @@
+{% if branches|length > 1 %}
+  <div class="app-navbar-item ms-1 ms-md-4">
+    <a href="#" class="btn btn-sm btn-light-primary fw-bold" data-kt-menu-trigger="{default:'click', lg: 'hover'}" data-kt-menu-attach="parent" data-kt-menu-placement="bottom-end">
+      <i class="ki-outline ki-geolocation fs-4"></i>
+      <span class="d-none d-sm-inline">{% if current %}{{ current.name }}{% else %}All my branches{% endif %}</span>
+      <i class="ki-outline ki-down fs-6 ms-1"></i>
+    </a>
+    <div class="menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-800 menu-state-bg fw-semibold py-3 w-225px" data-kt-menu="true">
+      <div class="menu-item px-3"><div class="menu-content fs-7 text-muted text-uppercase px-3">Working in</div></div>
+      {% for branch in branches %}
+        <div class="menu-item px-3">
+          <form method="post" action="{% url 'dashboard:branch_switch' %}">
+            {% csrf_token %}
+            <input type="hidden" name="branch" value="{{ branch.pk }}">
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <button type="submit" class="menu-link px-3 w-100 border-0 bg-transparent text-start{% if current == branch %} active{% endif %}">
+              {{ branch.name }}{% if branch.is_main %} <span class="badge badge-light ms-2">Main</span>{% endif %}
+            </button>
+          </form>
+        </div>
+      {% endfor %}
+      <div class="separator my-2"></div>
+      <div class="menu-item px-3">
+        <form method="post" action="{% url 'dashboard:branch_switch' %}">
+          {% csrf_token %}
+          <input type="hidden" name="branch" value="all">
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <button type="submit" class="menu-link px-3 w-100 border-0 bg-transparent text-start{% if not current %} active{% endif %}">All my branches</button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% elif current %}
+  <div class="app-navbar-item ms-1 ms-md-4 d-none d-md-flex">
+    <span class="badge badge-light-primary fs-7 py-3 px-3"><i class="ki-outline ki-geolocation fs-5 me-1 text-primary"></i>{{ current.name }}</span>
+  </div>
+{% endif %}

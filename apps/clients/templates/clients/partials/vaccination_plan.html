@@ -1,0 +1,57 @@
+{% if planned_vaccinations or vaccination_plans %}
+  <div class="card mb-5 mb-xl-8" id="vaccination-plan">
+    <div class="card-header pt-5">
+      <h2 class="card-title align-items-start flex-column">
+        <span class="card-label fw-bold text-gray-900 fs-3">Vaccination plan</span>
+        <span class="text-gray-500 mt-1 fw-semibold fs-6">{% if plan_due %}{{ plan_due }} dose{{ plan_due|pluralize }} still due{% else %}Doses are ticked off when the vaccine is recorded in a visit{% endif %}</span>
+      </h2>
+    </div>
+    <div class="card-body pt-2">
+      {% if planned_vaccinations %}
+        <div class="table-responsive mb-6">
+          <table class="table align-middle table-row-dashed gy-3 mb-0">
+            <thead><tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0"><th scope="col">Vaccine</th><th scope="col">Due</th><th scope="col">Status</th><th scope="col" class="text-end"></th></tr></thead>
+            <tbody class="fw-semibold text-gray-700">
+              {% for dose in planned_vaccinations %}
+                <tr>
+                  <td class="text-gray-900">{{ dose.vaccine }}{% if dose.label %} <span class="text-muted">· {{ dose.label }}</span>{% endif %}<div class="text-muted fs-8">{{ dose.plan }}</div></td>
+                  <td class="text-nowrap">{{ dose.due_date|date:"j M Y" }}</td>
+                  <td>
+                    {% if dose.status == "given" %}<span class="badge badge-light-success">Given{% if dose.record %} {{ dose.record.appointment.visit_date|date:"j M" }}{% endif %}</span>
+                    {% elif dose.status == "skipped" %}<span class="badge badge-light">Skipped</span>
+                    {% elif dose.is_overdue %}<span class="badge badge-light-danger">Overdue</span>
+                    {% else %}<span class="badge badge-light-warning">Due</span>{% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if can_plan and dose.status != "given" %}
+                      <form method="post" action="{% url 'dashboard:pet_plan' pet.pk %}" class="d-inline">
+                        {% csrf_token %}<input type="hidden" name="dose" value="{{ dose.pk }}">
+                        <button type="submit" class="btn btn-sm btn-light">{% if dose.status == "skipped" %}Restore{% else %}Skip{% endif %}</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+      {% if vaccination_plans %}
+        <form method="post" action="{% url 'dashboard:pet_plan' pet.pk %}" class="row g-3 align-items-end" onsubmit="return confirm('Plan these doses? Doses still due on the same plan are replaced.')">
+          {% csrf_token %}
+          <div class="col-md-6">
+            <label class="form-label" for="plan-choice">Put {{ pet.name }} on a plan</label>
+            <select id="plan-choice" name="plan" class="form-select form-select-solid" required>
+              {% for plan in vaccination_plans %}<option value="{{ plan.pk }}">{{ plan.name }}{% if plan.species %} ({{ plan.species }}){% endif %}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="plan-start">Starting</label>
+            <input id="plan-start" type="date" name="start" value="{{ today|date:'Y-m-d' }}" class="form-control form-control-solid">
+          </div>
+          <div class="col-md-3"><button type="submit" class="btn btn-light-primary w-100">Plan doses</button></div>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

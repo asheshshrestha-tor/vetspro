@@ -1,0 +1,55 @@
+{% load dashboard_tags %}
+{% if documents is not None %}
+  <div class="card mb-5 mb-xl-8" id="documents">
+    <div class="card-header pt-5">
+      <h2 class="card-title align-items-start flex-column">
+        <span class="card-label fw-bold text-gray-900 fs-3">Documents</span>
+        <span class="text-gray-500 mt-1 fw-semibold fs-6">Lab reports, X-rays, photos and letters for {{ pet.name }}</span>
+      </h2>
+    </div>
+    <div class="card-body pt-2">
+      {% if document_form %}
+        <form method="post" action="{% url 'dashboard:pet_document_add' pet.pk %}" enctype="multipart/form-data" class="row g-3 align-items-end mb-8" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}#documents">
+          {% if document_visit %}<input type="hidden" name="appointment" value="{{ document_visit.pk }}">{% endif %}
+          <div class="col-md-4">
+            <label class="form-label" for="{{ document_form.file.id_for_label }}">File</label>
+            {{ document_form.file }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="{{ document_form.kind.id_for_label }}">Type</label>
+            {{ document_form.kind }}
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="{{ document_form.title.id_for_label }}">Title (optional)</label>
+            {{ document_form.title }}
+          </div>
+          <div class="col-md-2"><button type="submit" class="btn btn-light-primary w-100"><i class="ki-outline ki-exit-up fs-3"></i> Upload</button></div>
+          <div class="col-12 form-text mt-1">{{ document_form.file.help_text }}{% if document_visit %} It is filed under this visit.{% endif %}</div>
+        </form>
+      {% endif %}
+      {% for document in documents %}
+        <div class="d-flex align-items-center border border-dashed border-gray-300 rounded p-3 mb-3 gap-3">
+          <i class="ki-outline {{ document.icon }} fs-2x text-primary"></i>
+          <div class="flex-grow-1 min-w-0">
+            <a href="{{ document.get_absolute_url }}" target="_blank" rel="noopener" class="fw-bold text-gray-900 text-hover-primary text-break">{{ document }}</a>
+            <div class="text-muted fs-7">
+              {{ document.get_kind_display }} · {{ document.uploaded_at|date:"j M Y" }}{% if document.uploaded_by %} · {{ document.uploaded_by|staff_name }}{% endif %}
+              {% if document.appointment %} · <a href="{{ document.appointment.get_absolute_url }}">{{ document.appointment.number }}</a>{% endif %}
+            </div>
+          </div>
+          {% if can_delete_documents %}
+            <form method="post" action="{% url 'dashboard:pet_document_delete' pet.pk document.pk %}" onsubmit="return confirm('Remove this document from the record?')">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.get_full_path }}#documents">
+              <button type="submit" class="btn btn-icon btn-sm btn-light btn-active-color-danger" title="Remove"><i class="ki-outline ki-trash fs-4"></i><span class="visually-hidden">Remove</span></button>
+            </form>
+          {% endif %}
+        </div>
+      {% empty %}
+        <p class="text-gray-600 mb-0">No documents yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}

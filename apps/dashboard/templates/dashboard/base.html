@@ -27,6 +27,7 @@
 
           <div class="d-flex align-items-stretch justify-content-end flex-lg-grow-1" id="kt_app_header_wrapper">
             <div class="app-navbar flex-shrink-0">
+              {% branch_switcher %}
               <div class="app-navbar-item">
                 <a href="{% url 'core:home' %}" target="_blank" rel="noopener" class="btn btn-sm btn-light-primary fw-bold">
                   <i class="ki-outline ki-exit-right-corner fs-4"></i><span class="d-none d-sm-inline"> View website</span>

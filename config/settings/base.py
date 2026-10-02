@@ -29,12 +29,16 @@ LOCAL_APPS = [
     "apps.gallery",
     "apps.testimonials",
     "apps.contact",
+    "apps.branches",
     "apps.accounts",
     "apps.clinic_setup",
     "apps.clients",
     "apps.appointments",
     "apps.shop",
     "apps.billing",
+    "apps.messaging",
+    "apps.reports",
+    "apps.activity",
     # Last, so every other app's dashboard.py is found when it starts.
     "apps.dashboard",
 ]
@@ -47,6 +51,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.activity.middleware.CurrentRequestMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -97,6 +102,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# Medical documents (lab reports, X-rays). Not mapped to any URL: they are only
+# sent by the dashboard to signed-in staff allowed to see them.
+PRIVATE_MEDIA_ROOT = Path(os.environ.get("PRIVATE_MEDIA_ROOT", BASE_DIR / "private_media"))
+DOCUMENT_MAX_MB = 15
 
 LOGIN_URL = "dashboard:login"
 LOGIN_REDIRECT_URL = "dashboard:home"

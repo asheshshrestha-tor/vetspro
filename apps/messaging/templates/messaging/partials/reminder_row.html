@@ -1,0 +1,22 @@
+<tr>
+  <td class="text-nowrap">
+    {% if due < today %}<span class="badge badge-light-danger">Overdue</span>{% elif due == today %}<span class="badge badge-light-warning">Today</span>{% endif %}
+    {{ due|date:"j M" }}{% if kind == "booking" and row.scheduled_time %} · {{ row.scheduled_time|time:"H:i" }}{% endif %}
+  </td>
+  <td><a href="{% url 'dashboard:pet_record' pet.pk %}" class="text-gray-900 text-hover-primary fw-bold">{{ pet.name }}</a></td>
+  <td>{{ owner.full_name }}<div class="text-muted fs-7"><a href="tel:{{ owner.phone_digits }}">{{ owner.phone }}</a></div></td>
+  <td>{{ what|truncatechars:50 }}{% if show_branch and kind == "booking" %}<div class="text-muted fs-8">{{ row.branch.name }}</div>{% endif %}</td>
+  <td>{% if reminded %}<span class="badge badge-light-success">{{ reminded|date:"j M, H:i" }}</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+  <td class="text-end text-nowrap">
+    {% if can_send %}
+      <a href="{% url 'dashboard:add' 'messaging' 'outboundmessage' %}?{{ param }}={{ row.pk }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-light-success mb-1"><i class="ki-outline ki-send fs-4"></i> Remind</a>
+      {% if kind != "booking" and not reminded %}
+        <form method="post" class="d-inline">
+          {% csrf_token %}
+          <input type="hidden" name="{{ param }}" value="{{ row.pk }}">
+          <button type="submit" class="btn btn-sm btn-light mb-1" title="Reminded by phone or in person">Mark reminded</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </td>
+</tr>

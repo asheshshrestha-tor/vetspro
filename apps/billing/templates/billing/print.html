@@ -58,8 +58,9 @@
       <img src="{% static 'images/bmb.jpg' %}" alt="">
       <div>
         <h1>{{ site.name }}</h1>
-        <p>{% if site.address %}{{ site.address }} · {% endif %}{{ site.phone }}{% if site.email %} · {{ site.email }}{% endif %}</p>
-        {% if site.pan_number %}<p>PAN / VAT no. {{ site.pan_number }}</p>{% endif %}
+        {% if branch_count > 1 %}<p><strong>{{ branch.name }}</strong></p>{% endif %}
+        <p>{% if branch.effective_address %}{{ branch.effective_address }} · {% endif %}{{ branch.effective_phone }}{% if branch.email %} · {{ branch.email }}{% elif site.email %} · {{ site.email }}{% endif %}</p>
+        {% if branch.effective_pan %}<p>PAN / VAT no. {{ branch.effective_pan }}</p>{% endif %}
       </div>
       <div class="doc">
         <strong>{% if invoice.vat_amount %}TAX INVOICE{% else %}INVOICE{% endif %}</strong>
@@ -84,7 +85,7 @@
     </div>
 
     <table>
-      <thead><tr><th style="width:40px">#</th><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Amount</th></tr></thead>
+      <thead><tr><th style="width:40px">#</th><th>Item</th><th class="num">Qty</th><th class="num">Price</th>{% if has_discounts %}<th class="num">Disc.</th>{% endif %}<th class="num">Amount</th></tr></thead>
       <tbody>
         {% for item in items %}
           <tr>
@@ -92,6 +93,7 @@
             <td>{{ item.description }}</td>
             <td class="num">{{ item.quantity|qty }}{% if item.product %} {{ item.product.unit }}{% endif %}</td>
             <td class="num">{{ item.unit_price|rs }}</td>
+            {% if has_discounts %}<td class="num">{% if item.discount_percent %}{{ item.discount_percent|qty }}%{% endif %}</td>{% endif %}
             <td class="num">{{ item.line_total|rs }}</td>
           </tr>
         {% endfor %}
@@ -113,7 +115,7 @@
 
     <footer>
       <div>
-        {{ site.invoice_footer }}<br>
+        {{ branch.effective_invoice_footer }}<br>
         {% if invoice.issued_by %}Issued by {{ invoice.issued_by|staff_name }}{% endif %}
       </div>
       <div class="signature">Authorised signature</div>
