@@ -34,6 +34,7 @@ LOCAL_APPS = [
     "apps.clinic_setup",
     "apps.clients",
     "apps.appointments",
+    "apps.schedules",
     "apps.shop",
     "apps.billing",
     "apps.messaging",

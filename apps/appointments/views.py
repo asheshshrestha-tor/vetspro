@@ -24,13 +24,16 @@ from apps.branches.context import allowed_ids, current_branch, is_all_mode, requ
 from .records import build_grids, field_list, grids_have_input, save_grids
 
 
-def queue_url(day=None, board=False):
+def queue_url(day=None, board=False, doctor=None):
+    """The queue for a day, as a list or the triage board. A doctor shows only the visits they attend."""
     url = reverse("dashboard:appointment_queue")
     params = []
     if day and day != timezone.localdate():
         params.append(f"date={day.isoformat()}")
     if board:
         params.append("view=board")
+    if doctor:
+        params.append(f"doctor={doctor}")
     return url + ("?" + "&".join(params) if params else "")
 
 
@@ -93,11 +96,18 @@ class QueueView(AppointmentPage, TemplateView):
     def get_day(self):
         return parse_date(self.request.GET.get("date") or "") or timezone.localdate()
 
+    def get_doctor(self):
+        value = self.request.GET.get("doctor") or ""
+        return int(value) if value.isdigit() else None
+
     def get_context_data(self, **kwargs):
+        from apps.schedules.availability import doctors_on
+
         context = super().get_context_data(**kwargs)
         user = self.request.user
         day = self.get_day()
         today = timezone.localdate()
+        doctor = self.get_doctor()
 
         branch_ids = scope_ids(self.request)
         visits = (
@@ -106,6 +116,8 @@ class QueueView(AppointmentPage, TemplateView):
             .select_related("branch", "client", "pet__species", "attended_by")
             .order_by("scheduled_time", "token", "arrival_time", "id")
         )
+        if doctor:
+            visits = visits.filter(attended_by_id=doctor)
         rows = {status: [] for status, _ in Appointment.STATUS_CHOICES}
         for visit in visits:
             rows[visit.status].append({"visit": visit, "actions": status_actions(visit, user, in_queue=True)})
@@ -113,23 +125,31 @@ class QueueView(AppointmentPage, TemplateView):
         # Follow-ups that were due earlier and never arrived are shown on today's queue.
         overdue = []
         if day == today:
-            for visit in (
-                Appointment.objects.filter(status=Appointment.SCHEDULED, visit_date__lt=today, branch_id__in=branch_ids)
-                .select_related("branch", "client", "pet__species", "attended_by")
-                .order_by("visit_date")
-            ):
+            missed = Appointment.objects.filter(status=Appointment.SCHEDULED, visit_date__lt=today, branch_id__in=branch_ids)
+            if doctor:
+                missed = missed.filter(attended_by_id=doctor)
+            for visit in missed.select_related("branch", "client", "pet__species", "attended_by").order_by("visit_date"):
                 overdue.append({"visit": visit, "actions": status_actions(visit, user, in_queue=True)})
 
         counts = dict(visits.values_list("status").annotate(total=Count("id")))
         board = self.request.GET.get("view") == "board"
+
+        # Who is working, with a patient or away; picking one shows only their patients.
+        doctors = doctors_on(day, branch_ids)
+        for row in doctors:
+            row["selected"] = row["staff"].pk == doctor
+            row["url"] = queue_url(day, board, doctor=None if row["selected"] else row["staff"].pk)
         context.update(
             day=day,
             is_today=day == today,
-            previous_day=queue_url(day - datetime.timedelta(days=1), board),
-            next_day=queue_url(day + datetime.timedelta(days=1), board),
-            today_url=queue_url(board=board),
-            list_url=queue_url(day),
-            board_url=queue_url(day, board=True),
+            previous_day=queue_url(day - datetime.timedelta(days=1), board, doctor),
+            next_day=queue_url(day + datetime.timedelta(days=1), board, doctor),
+            today_url=queue_url(board=board, doctor=doctor),
+            list_url=queue_url(day, doctor=doctor),
+            board_url=queue_url(day, board=True, doctor=doctor),
+            doctors=doctors,
+            doctor=next((row for row in doctors if row["selected"]), None),
+            all_doctors_url=queue_url(day, board),
             # With the vet first; then waiting pets by triage (emergency first) and token.
             in_queue_sorted=sorted(
                 rows[Appointment.IN_CONSULTATION] + rows[Appointment.WAITING],
@@ -299,6 +319,16 @@ class ConsultationView(AppointmentPage, TemplateView):
             visit.save()
             if complete:
                 visit.apply("complete", user=request.user)
+
+        visit_form = forms.get("visit_form")
+        if visit_form is not None and visit.status == Appointment.SCHEDULED and (
+            {"visit_date", "scheduled_time", "attended_by"} & set(visit_form.changed_data)
+        ):
+            from apps.schedules.availability import booking_warning
+
+            warning = booking_warning(visit.attended_by, visit.branch, visit.visit_date, visit.scheduled_time)
+            if warning:
+                messages.warning(request, warning)
 
         template_id = request.POST.get("_template", "")
         if template_id.isdigit() and self.can_edit_clinical and not complete:
@@ -543,9 +573,13 @@ class BookingsView(AppointmentPage, TemplateView):
         by_day = {day: [] for day in days}
         for visit in bookings:
             by_day[visit.visit_date].append(visit)
+        duty = self.on_duty(days)
         week_url = reverse("dashboard:appointment_bookings")
         context.update(
-            days=[{"date": day, "is_today": day == today, "visits": by_day[day]} for day in days],
+            days=[
+                {"date": day, "is_today": day == today, "visits": by_day[day], **duty[day]}
+                for day in days
+            ],
             start=days[0],
             end=days[-1],
             previous_week=f"{week_url}?week={(start - datetime.timedelta(days=7)).isoformat()}",
@@ -556,3 +590,22 @@ class BookingsView(AppointmentPage, TemplateView):
         )
         return context
 
+    def on_duty(self, days):
+        """{date: who works that day and who is on leave}, from the doctor schedule."""
+        from apps.schedules.availability import load_days, roster_staff, staff_name
+
+        branch_ids = scope_ids(self.request)
+        staff = list(roster_staff(branch_ids).order_by("first_name", "last_name", "username"))
+        schedule = load_days(staff, days[0], days[-1])
+        duty = {}
+        for day in days:
+            working, leave = [], []
+            for member in staff:
+                info = schedule[(member.pk, day)]
+                blocks = info.at(branch_ids)
+                if info.leave_all_day is not None and info.works_at(branch_ids):
+                    leave.append(staff_name(member))
+                elif blocks:
+                    working.append({"name": staff_name(member), "hours": f"{blocks[0].start:%H:%M}–{blocks[-1].end:%H:%M}"})
+            duty[day] = {"on_duty": working, "on_leave": leave}
+        return duty

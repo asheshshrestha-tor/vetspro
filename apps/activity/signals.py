@@ -14,7 +14,7 @@ from .middleware import current_request
 # Apps whose records are logged.
 TRACKED_APPS = {
     "core", "services", "team", "pricing", "faq", "gallery", "testimonials",
-    "clinic_setup", "clients", "appointments", "accounts", "shop", "billing", "branches", "messaging", "auth",
+    "clinic_setup", "clients", "appointments", "schedules", "accounts", "shop", "billing", "branches", "messaging", "auth",
 }
 # Records that are already a log, or change too often to be useful here.
 SKIPPED_MODELS = {

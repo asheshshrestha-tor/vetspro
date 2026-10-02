@@ -275,3 +275,18 @@
 
 /* SOAP letters on the consultation tabs */
 .soap-letter { display: inline-block; min-width: 1.6em; padding: 0 .35em; margin-right: .35em; border-radius: .4em; font-size: .75em; line-height: 1.6; text-align: center; background: var(--bs-primary-light); color: var(--bs-primary); }
+
+/* Doctor schedule: the "+ leave / change" link shows when the day is pointed at. */
+.schedule-cell .schedule-add {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.schedule-cell:hover .schedule-add,
+.schedule-cell .schedule-add:focus {
+  opacity: 1;
+}
+@media (hover: none) {
+  .schedule-cell .schedule-add {
+    opacity: 1;
+  }
+}

@@ -46,6 +46,7 @@ apps/
                         treatment templates
   clients/              Pet owners and their pets, record pages and pet documents
   appointments/         Queue and triage board, bookings, consultations, follow-ups, vaccination plans
+  schedules/            Doctors' weekly hours, leave and extra shifts, and who is available now
   shop/                 Products and packages, stock per branch, transfers, branch prices, pet shop pages
   billing/              Invoices for counter sales and visits, payments and receipts
   messaging/            Reminders and messages to owners by SMS, WhatsApp or email
@@ -64,6 +65,7 @@ private_media/          Pet documents: never served directly, only through the d
 | --- | --- |
 | Register a walk-in, see who is waiting | Clinic > Today's queue |
 | Every visit, searchable by date, status, vet or phone | Clinic > Appointments |
+| Doctors' weekly hours, leave and extra shifts | Clinic > Doctor schedule, Clinic > Leave & changes |
 | Owners and pets, with their full records | Clinic > Clients, Clinic > Pets |
 | Lists used during visits | Clinic setup |
 | Sell at the counter, bill a visit, take payments | Billing > New sale, Billing > Invoices |
@@ -173,6 +175,29 @@ one for owners to fill in by hand. The authorization paragraph is edited in
 **Website > Site settings**.
 
 Nothing clinical is ever shown on the public website.
+
+### Doctor schedule
+
+**Clinic > Doctor schedule** shows the week for every doctor at the branch: regular
+hours, extra shifts, leave and time away. Administrators set each doctor's regular week
+with "Set hours" (up to two blocks a day, per branch; "Copy to weekdays" fills Tuesday to
+Friday from Monday) and add leave, a few hours away or an extra shift under
+**Clinic > Leave & changes**. Saving leave that falls on booked visits lists those visits
+so they can be moved to another doctor or day.
+
+The schedule is then used across the clinic:
+
+- **Today's queue** shows each doctor's status: available, with a patient (and which
+  one), later today, off duty, away or on leave, with how many pets are waiting for them.
+  Click a doctor to see only their patients. The dashboard home shows the same list.
+- **New walk-in / booking** shows each doctor's status for the chosen date in "Attended
+  by". Choosing a doctor who is on leave, not working at the branch that day, or (for a
+  booking with a time) outside their hours asks for "Keep this doctor" before saving.
+  Moving a booking onto leave from the visit page shows a warning.
+- **Bookings** shows who is on duty and who is on leave each day.
+
+Doctors with no hours entered are shown as "Hours not set" and never trigger a warning,
+so the schedule can be filled in one doctor at a time.
 
 ## Shop and billing
 

@@ -42,6 +42,12 @@
             {% endif %}
           </div>
           <div class="card-body pt-0">
+            {% if day.on_duty or day.on_leave %}
+              <div class="fs-8 text-muted mb-3">
+                {% if day.on_duty %}<div><span class="bullet bullet-dot bg-success h-6px w-6px me-1"></span>{% for doc in day.on_duty %}{{ doc.name }} <span class="text-gray-500">{{ doc.hours }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}</div>{% endif %}
+                {% if day.on_leave %}<div><span class="bullet bullet-dot bg-danger h-6px w-6px me-1"></span>On leave: {{ day.on_leave|join:", " }}</div>{% endif %}
+              </div>
+            {% endif %}
             {% for visit in day.visits %}
               <a href="{{ visit.get_absolute_url }}" class="d-block border border-dashed border-gray-300 rounded p-3 mb-3 text-hover-primary">
                 <div class="d-flex align-items-center mb-1">

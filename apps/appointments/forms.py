@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.forms import inlineformset_factory
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 
 from apps.clients.models import Client, Pet, normalize_phone
 from apps.clinic_setup.models import Species
@@ -20,10 +21,15 @@ from .models import Appointment, Treatment, attending_staff
 
 
 class StaffChoiceField(forms.ModelChoiceField):
+    # {user id: what they are doing}, e.g. "Available (until 17:00)", added after the name when set.
+    summaries = {}
+
     def label_from_instance(self, user):
         name = user.get_full_name() or user.get_username()
         profile = getattr(user, "staff_profile", None)
-        return f"{name} · {profile.designation}" if profile and profile.designation else name
+        label = f"{name} · {profile.designation}" if profile and profile.designation else name
+        summary = self.summaries.get(user.pk)
+        return f"{label} — {summary}" if summary else label
 
 
 def staff_queryset(current=None, branch=None):
@@ -75,10 +81,16 @@ class WalkInForm(DashboardForm):
     )
     reason = forms.CharField(label="Reason for visit", max_length=255)
     attended_by = StaffChoiceField(queryset=attending_staff(), required=False)
+    confirm_schedule = forms.BooleanField(
+        label="Keep this doctor", required=False,
+        help_text="Book them anyway, e.g. when they have agreed to come in.",
+    )
     weight_kg = forms.DecimalField(label="Body weight (kg)", max_digits=6, decimal_places=2, min_value=0, required=False)
 
     def __init__(self, *args, branch=None, **kwargs):
         super().__init__(*args, **kwargs)
+        self.branch = branch
+        self.schedule_warning = ""
         widgets = {
             "client": AutocompleteSelect(
                 reverse("dashboard:autocomplete", args=["clients", "client"]), placeholder="Search by name or phone"
@@ -95,6 +107,19 @@ class WalkInForm(DashboardForm):
             widget.attrs["class"] = "form-select form-select-solid"
             field.widget = widget
         self.fields["attended_by"].queryset = staff_queryset(branch=branch)
+        if branch is not None:
+            from apps.schedules.availability import summaries
+
+            # Each doctor's status for the chosen date; the page updates it when the date changes.
+            day = self.initial.get("visit_date")
+            if self.is_bound:
+                try:
+                    day = parse_date(self.data.get(self.add_prefix("visit_date")) or "")
+                except ValueError:
+                    day = None
+            self.fields["attended_by"].summaries = summaries(
+                self.fields["attended_by"].queryset, day or timezone.localdate(), [branch.pk]
+            )
         self.duplicates = Client.objects.none()
 
     def clean_visit_date(self):
@@ -135,7 +160,21 @@ class WalkInForm(DashboardForm):
                 self.add_error("new_pet_name", "Choose one of the owner's pets or enter the new pet's name.")
             if not cleaned.get("new_pet_species"):
                 self.add_error("new_pet_species", "Choose the species.")
+        self.check_schedule(cleaned)
         return cleaned
+
+    def check_schedule(self, cleaned):
+        """A doctor on leave or not working that day is only kept when the box is ticked."""
+        from apps.schedules.availability import booking_warning
+
+        day = cleaned.get("visit_date")
+        # Walk-ins today are checked for the day; booked visits also for their time.
+        moment = cleaned.get("scheduled_time") if day and day != timezone.localdate() else None
+        warning = booking_warning(cleaned.get("attended_by"), self.branch, day, moment)
+        if warning:
+            self.schedule_warning = warning
+            if not cleaned.get("confirm_schedule"):
+                self.add_error("attended_by", f"{warning} Choose another doctor, or tick “Keep this doctor”.")
 
     def build_client(self, user):
         data = self.cleaned_data

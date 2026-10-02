@@ -30,6 +30,7 @@
       <a href="{{ previous_day }}" class="btn btn-sm btn-icon btn-light" aria-label="Previous day"><i class="ki-outline ki-left fs-3"></i></a>
       <form method="get" class="d-flex align-items-center gap-2">
         {% if board %}<input type="hidden" name="view" value="board">{% endif %}
+        {% if doctor %}<input type="hidden" name="doctor" value="{{ doctor.staff.pk }}">{% endif %}
         <label class="visually-hidden" for="queue-date">Date</label>
         <input id="queue-date" type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control form-control-solid form-control-sm w-auto" onchange="this.form.submit()">
       </form>
@@ -43,6 +44,25 @@
       </div>
     </div>
   </div>
+
+  {% if doctors %}
+    <div class="card mb-5 mb-xl-8">
+      <div class="card-header min-h-50px">
+        <h2 class="card-title fs-5 fw-bold">{% if is_today %}Doctors today{% else %}Doctors on {{ day|date:"D j M" }}{% endif %}</h2>
+        <div class="card-toolbar gap-2">
+          {% if doctor %}
+            <span class="text-gray-600 fs-7">Showing {{ doctor.name }}'s patients</span>
+            <a href="{{ all_doctors_url }}" class="btn btn-sm btn-light-primary">Show everyone</a>
+          {% else %}
+            <span class="text-muted fs-7">Pick a doctor to see only their patients</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body pt-0 pb-5">
+        {% include "schedules/partials/doctor_strip.html" %}
+      </div>
+    </div>
+  {% endif %}
 
   {% if board %}
     <div class="row g-5 mb-5 mb-xl-8">

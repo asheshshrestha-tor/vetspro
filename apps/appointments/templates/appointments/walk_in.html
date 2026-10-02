@@ -17,7 +17,7 @@
 {% endblock %}
 
 {% block content %}
-  <form method="post" novalidate data-walk-in>
+  <form method="post" novalidate data-walk-in data-availability-url="{% url 'dashboard:schedule_availability' %}">
     {% csrf_token %}
     {% for error in form.non_field_errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
 
@@ -101,6 +101,9 @@
             {% include "dashboard/partials/field.html" with field=form.reason %}
             {% include "dashboard/partials/field.html" with field=form.priority %}
             {% include "dashboard/partials/field.html" with field=form.attended_by %}
+            {% if form.schedule_warning %}
+              {% include "dashboard/partials/field.html" with field=form.confirm_schedule %}
+            {% endif %}
             {% include "dashboard/partials/field.html" with field=form.weight_kg %}
             {% include "dashboard/partials/field.html" with field=form.visit_date %}
             <div class="form-text mt-n4 mb-6">Today puts the pet in the queue with a token. A later date books the visit.</div>
@@ -121,4 +124,5 @@
 {% block extra_js %}
   <script src="{% asset 'dashboard/js/forms.js' %}"></script>
   <script src="{% asset 'appointments/appointments.js' %}"></script>
+  <script src="{% asset 'schedules/schedules.js' %}"></script>
 {% endblock %}

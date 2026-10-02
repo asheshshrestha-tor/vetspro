@@ -15,7 +15,7 @@ RECEPTIONIST = "Receptionist"
 
 MANAGED_APPS = [
     "core", "services", "team", "pricing", "faq", "gallery", "testimonials", "contact",
-    "clinic_setup", "clients", "appointments", "accounts", "shop", "billing", "branches",
+    "clinic_setup", "clients", "appointments", "schedules", "accounts", "shop", "billing", "branches",
     "messaging", "reports", "activity",
 ]
 
@@ -37,6 +37,8 @@ CLINIC_TEAM_MODELS = {
     ("clinic_setup", "vaccinationplan"): VIEW,
     ("messaging", "outboundmessage"): ["view", "add"],
     ("messaging", "messagetemplate"): VIEW,
+    ("schedules", "doctorshift"): VIEW,
+    ("schedules", "schedulechange"): VIEW,
 }
 
 # (app label, model name) -> actions, plus extra codenames per role.
