@@ -49,8 +49,8 @@
         <div class="d-flex flex-wrap align-items-start justify-content-end gap-2">
           {% include "appointments/partials/status_actions.html" with actions=actions %}
           {% if can_view_clinical and visit.status != "cancelled" %}
-            <a href="{% url 'dashboard:appointment_form' visit.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-light mb-1"><i class="ki-outline ki-printer fs-4"></i> Print form</a>
-            <a href="{% url 'dashboard:appointment_print' visit.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-light mb-1"><i class="ki-outline ki-document fs-4"></i> Print summary</a>
+            <a href="{% url 'dashboard:appointment_form' visit.pk %}" data-preview data-preview-title="Visit form · {{ visit.number }}" class="btn btn-sm btn-light mb-1"><i class="ki-outline ki-printer fs-4"></i> Print form</a>
+            <a href="{% url 'dashboard:appointment_print' visit.pk %}" data-preview data-preview-title="Visit summary · {{ visit.number }}" class="btn btn-sm btn-light mb-1"><i class="ki-outline ki-document fs-4"></i> Print summary</a>
           {% endif %}
           {% if perms.messaging.add_outboundmessage %}
             <a href="{% url 'dashboard:add' 'messaging' 'outboundmessage' %}?appointment={{ visit.pk }}&amp;next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-light-success mb-1"><i class="ki-outline ki-send fs-4"></i> Message owner</a>

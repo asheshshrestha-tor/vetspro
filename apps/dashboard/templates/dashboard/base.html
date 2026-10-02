@@ -1,4 +1,4 @@
-{% load static dashboard_tags %}<!DOCTYPE html>
+{% load assets static dashboard_tags %}<!DOCTYPE html>
 <html lang="en">
 <head>
   <title>{% block title %}Dashboard{% endblock %} | {{ site.short_name }}</title>
@@ -160,9 +160,12 @@
     <i class="ki-outline ki-arrow-up"></i>
   </div>
 
+  {% include "dashboard/partials/preview_modal.html" %}
+
   <script>var hostUrl = "{% static 'dashboard/' %}";</script>
   <script src="{% static 'dashboard/plugins/global/plugins.bundle.js' %}"></script>
   <script src="{% static 'dashboard/js/scripts.bundle.js' %}"></script>
+  <script src="{% asset 'dashboard/js/preview.js' %}"></script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

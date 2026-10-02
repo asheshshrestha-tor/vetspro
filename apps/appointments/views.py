@@ -24,13 +24,17 @@ from apps.branches.context import allowed_ids, current_branch, is_all_mode, requ
 from .records import build_grids, field_list, grids_have_input, save_grids
 
 
-def queue_url(day=None, board=False):
+QUEUE_VIEWS = ("list", "board")
+
+
+def queue_url(day=None, view=""):
+    """The queue for a day. Pass view only to switch layouts: the choice is remembered (see QueueView)."""
     url = reverse("dashboard:appointment_queue")
     params = []
     if day and day != timezone.localdate():
         params.append(f"date={day.isoformat()}")
-    if board:
-        params.append("view=board")
+    if view:
+        params.append(f"view={view}")
     return url + ("?" + "&".join(params) if params else "")
 
 
@@ -121,15 +125,20 @@ class QueueView(AppointmentPage, TemplateView):
                 overdue.append({"visit": visit, "actions": status_actions(visit, user, in_queue=True)})
 
         counts = dict(visits.values_list("status").annotate(total=Count("id")))
-        board = self.request.GET.get("view") == "board"
+        # List or triage board: the last one picked stays until the user switches again.
+        session = self.request.session
+        view = self.request.GET.get("view")
+        if view in QUEUE_VIEWS and session.get("queue_view") != view:
+            session["queue_view"] = view
+        board = session.get("queue_view") == "board"
         context.update(
             day=day,
             is_today=day == today,
-            previous_day=queue_url(day - datetime.timedelta(days=1), board),
-            next_day=queue_url(day + datetime.timedelta(days=1), board),
-            today_url=queue_url(board=board),
-            list_url=queue_url(day),
-            board_url=queue_url(day, board=True),
+            previous_day=queue_url(day - datetime.timedelta(days=1)),
+            next_day=queue_url(day + datetime.timedelta(days=1)),
+            today_url=queue_url(),
+            list_url=queue_url(day, view="list"),
+            board_url=queue_url(day, view="board"),
             # With the vet first; then waiting pets by triage (emergency first) and token.
             in_queue_sorted=sorted(
                 rows[Appointment.IN_CONSULTATION] + rows[Appointment.WAITING],

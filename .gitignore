@@ -11,3 +11,4 @@ media/*
 .vscode/
 .idea/
 private_media/
+*.sqlite3
