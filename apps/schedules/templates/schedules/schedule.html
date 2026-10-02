@@ -1,0 +1,97 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}Doctor schedule{% endblock %}
+{% block heading %}Doctor schedule: {{ start|date:"j M" }} – {{ end|date:"j M Y" }}{% endblock %}
+
+{% block breadcrumb %}
+  {% include "dashboard/partials/crumb.html" with label="Clinic" %}
+  {% include "dashboard/partials/crumb.html" with label="Doctor schedule" %}
+{% endblock %}
+
+{% block actions %}
+  {% if changes %}
+    <a href="{{ changes.list_url }}" class="btn btn-sm fw-bold btn-light"><i class="ki-outline ki-calendar-remove fs-3"></i> Leave &amp; changes</a>
+  {% endif %}
+  {% if can_add_change %}
+    <a href="{{ changes.add_url }}" class="btn btn-sm fw-bold btn-primary"><i class="ki-outline ki-plus fs-3"></i> Add leave or extra shift</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="card mb-5 mb-xl-8">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3 py-5">
+      <a href="{{ previous_week }}" class="btn btn-sm btn-icon btn-light" aria-label="Previous week"><i class="ki-outline ki-left fs-3"></i></a>
+      {% if not is_this_week %}<a href="{{ this_week }}" class="btn btn-sm btn-light-primary">This week</a>{% endif %}
+      <a href="{{ next_week }}" class="btn btn-sm btn-icon btn-light" aria-label="Next week"><i class="ki-outline ki-right fs-3"></i></a>
+      <div class="d-flex flex-wrap gap-4 ms-lg-auto fs-7 text-gray-600">
+        <span><span class="badge badge-light-success">10:00–17:00</span> regular hours</span>
+        <span><span class="badge badge-success">10:00–14:00</span> extra shift</span>
+        <span><span class="badge badge-light-danger">Leave</span> whole day</span>
+        <span><span class="badge badge-light-warning">Away</span> part of the day</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body pt-6">
+      {% if rows %}
+        <div class="table-responsive">
+          <table class="table align-middle table-row-dashed fs-6 gy-4 schedule-table">
+            <thead>
+              <tr class="text-start text-gray-500 fw-bold fs-7 text-uppercase gs-0">
+                <th scope="col" class="min-w-175px">Doctor</th>
+                {% for day in days %}
+                  <th scope="col" class="min-w-125px{% if day.is_today %} text-primary{% endif %}">
+                    {{ day.date|date:"D j M" }}{% if day.is_today %} <span class="badge badge-light-primary ms-1">Today</span>{% endif %}
+                  </th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody class="fw-semibold text-gray-700">
+              {% for row in rows %}
+                <tr>
+                  <td>
+                    <div class="fw-bold text-gray-900">{{ row.name }}</div>
+                    {% if row.designation %}<div class="text-muted fs-7">{{ row.designation }}</div>{% endif %}
+                    {% if row.hours_url %}
+                      <a href="{{ row.hours_url }}" class="btn btn-sm btn-light-primary mt-2"><i class="ki-outline ki-time fs-5"></i> {% if row.has_hours %}Edit hours{% else %}Set hours{% endif %}</a>
+                    {% elif not row.has_hours %}
+                      <div class="text-muted fs-8 mt-1">Hours not set</div>
+                    {% endif %}
+                  </td>
+                  {% for cell in row.cells %}
+                    <td class="schedule-cell{% if cell.is_today %} bg-light-primary{% endif %}">
+                      {% if cell.leave %}
+                        <span class="badge badge-light-danger" title="{{ cell.leave.reason }}">Leave</span>
+                        {% if cell.leave.reason %}<div class="text-muted fs-8 mt-1">{{ cell.leave.reason|truncatechars:30 }}</div>{% endif %}
+                      {% else %}
+                        {% for block in cell.blocks %}
+                          <div class="mb-1">
+                            <span class="badge {% if block.extra %}badge-success{% else %}badge-light-success{% endif %}">{{ block.label }}</span>
+                            {% if show_branch %}<div class="text-muted fs-8">{{ block.branch }}</div>{% endif %}
+                          </div>
+                        {% empty %}
+                          <span class="text-gray-400 fs-7">{% if cell.has_hours %}Off{% else %}—{% endif %}</span>
+                        {% endfor %}
+                        {% for away in cell.away %}
+                          <div><span class="badge badge-light-warning" title="{{ away.reason }}">Away {{ away.times_label }}</span></div>
+                        {% endfor %}
+                      {% endif %}
+                      {% if cell.add_leave_url and not cell.leave %}
+                        <a href="{{ cell.add_leave_url }}" class="schedule-add text-muted fs-8 d-block mt-1" aria-label="Add leave or a change for {{ row.name }} on {{ cell.date|date:'j M' }}">+ leave / change</a>
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="text-gray-600 fw-semibold text-center py-10 mb-0">
+          Nobody at this branch can attend appointments. Tick “Can attend appointments” on a staff user to add them here.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

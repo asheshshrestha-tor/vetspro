@@ -1,0 +1,12 @@
+<div class="card card-flush mb-5 mb-xl-8">
+  <div class="card-header pt-7">
+    <h2 class="card-title align-items-start flex-column">
+      <span class="card-label fw-bold text-gray-900 fs-3">Doctors today</span>
+      <span class="text-gray-500 mt-1 fw-semibold fs-6">Who is in, who is with a patient, and who is away</span>
+    </h2>
+    <div class="card-toolbar"><a href="{{ panel.schedule_url }}" class="btn btn-sm btn-light">Schedule</a></div>
+  </div>
+  <div class="card-body pt-4">
+    {% include "schedules/partials/doctor_strip.html" with doctors=panel.rows %}
+  </div>
+</div>

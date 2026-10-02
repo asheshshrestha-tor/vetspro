@@ -1,0 +1,16 @@
+{# Doctors for a day with what each is doing. Rows come from schedules.availability.doctors_on. #}
+<div class="d-flex flex-wrap gap-3">
+  {% for row in doctors %}
+    {% with tag=row.url|yesno:"a,div" %}
+      <{{ tag }}{% if row.url %} href="{{ row.url }}"{% endif %} class="doctor-chip d-flex align-items-center border border-dashed rounded px-4 py-2 {% if row.selected %}border-primary bg-light-primary{% else %}border-gray-300{% endif %} text-gray-800{% if row.url %} text-hover-primary{% endif %}"{% if row.url %} title="{% if row.selected %}Show every doctor's patients{% else %}Show only {{ row.name }}'s patients{% endif %}"{% endif %}>
+        <span class="bullet bullet-dot bg-{{ row.color }} h-10px w-10px me-3 flex-shrink-0"></span>
+        <span class="d-block">
+          <span class="d-block fw-bold fs-6">{{ row.name }}</span>
+          <span class="d-block fs-8 text-muted">
+            <span class="text-{{ row.color }} fw-semibold">{{ row.label }}</span>{% if row.detail %} · {{ row.detail }}{% endif %}{% if row.waiting %} · {{ row.waiting }} waiting{% endif %}
+          </span>
+        </span>
+      </{{ tag }}>
+    {% endwith %}
+  {% endfor %}
+</div>
