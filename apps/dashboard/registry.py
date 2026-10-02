@@ -75,6 +75,8 @@ class Module:
     list_display = []
     search_fields = []
     # Field names or lookups through relations, e.g. "pet__species".
+    # Model field lookups, or names of module methods `(request, queryset, value)` with a
+    # `filter_choices` attribute for filters that are not a plain field.
     list_filter = []
     # A date field to filter the list by, with quick ranges such as today and this week.
     date_filter = ""

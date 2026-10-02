@@ -13,6 +13,53 @@
     });
   });
 
+  // Triage board: dropping a card on another column submits the card's matching status form,
+  // so a drop is allowed only where that visit has a button for the move.
+  var dragged = null;
+  var formFor = function (card, status) {
+    return card && card.querySelector('form[data-status-target="' + status + '"]');
+  };
+  document.querySelectorAll("[data-triage-card][draggable]").forEach(function (card) {
+    card.addEventListener("dragstart", function (event) {
+      dragged = card;
+      card.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", "");
+    });
+    card.addEventListener("dragend", function () {
+      card.classList.remove("is-dragging");
+      dragged = null;
+      document.querySelectorAll("[data-triage-column]").forEach(function (column) {
+        column.classList.remove("is-drop-ok", "is-drop-blocked");
+      });
+    });
+  });
+  document.querySelectorAll("[data-triage-column]").forEach(function (column) {
+    var status = column.getAttribute("data-triage-column");
+    column.addEventListener("dragover", function (event) {
+      if (!dragged || column.contains(dragged)) return;
+      var allowed = Boolean(formFor(dragged, status));
+      column.classList.toggle("is-drop-ok", allowed);
+      column.classList.toggle("is-drop-blocked", !allowed);
+      if (allowed) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+      }
+    });
+    column.addEventListener("dragleave", function (event) {
+      if (column.contains(event.relatedTarget)) return;
+      column.classList.remove("is-drop-ok", "is-drop-blocked");
+    });
+    column.addEventListener("drop", function (event) {
+      event.preventDefault();
+      var form = formFor(dragged, status);
+      column.classList.remove("is-drop-ok", "is-drop-blocked");
+      if (!form) return;
+      column.prepend(dragged);
+      form.requestSubmit ? form.requestSubmit() : form.submit();
+    });
+  });
+
   // Walk-in: an existing owner hides the new-owner fields, and a chosen pet hides the new-pet fields.
   var walkIn = document.querySelector("form[data-walk-in]");
   if (walkIn && window.jQuery) {

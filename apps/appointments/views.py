@@ -57,6 +57,8 @@ def status_actions(appointment, user, in_queue=False):
                     "color": color,
                     "url": reverse("dashboard:appointment_status", args=[appointment.pk, action]),
                     "ask_reason": action == "cancel",
+                    # The status the visit moves to, so the triage board can map a drop to this action.
+                    "target": Appointment.TRANSITIONS[action][1] or "",
                 }
             )
     return actions
@@ -139,12 +141,12 @@ class QueueView(AppointmentPage, TemplateView):
             ),
             board=board,
             board_columns=[
-                ("Waiting", "warning", sorted(
+                ("Waiting", "warning", Appointment.WAITING, sorted(
                     rows[Appointment.WAITING],
                     key=lambda row: (Appointment.PRIORITY_RANK.get(row["visit"].priority, 9), row["visit"].token or 0),
                 )),
-                ("In consultation", "primary", rows[Appointment.IN_CONSULTATION]),
-                ("Completed", "success", rows[Appointment.COMPLETED]),
+                ("In consultation", "primary", Appointment.IN_CONSULTATION, rows[Appointment.IN_CONSULTATION]),
+                ("Completed", "success", Appointment.COMPLETED, rows[Appointment.COMPLETED]),
             ],
             show_branch=is_all_mode(self.request),
             branch=current_branch(self.request),

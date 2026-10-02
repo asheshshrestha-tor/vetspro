@@ -46,16 +46,16 @@
 
   {% if board %}
     <div class="row g-5 mb-5 mb-xl-8">
-      {% for title, color, column in board_columns %}
+      {% for title, color, status, column in board_columns %}
         <div class="col-lg-4">
           <div class="card card-flush h-100 border-top border-3 border-{{ color }}">
             <div class="card-header min-h-50px">
               <h2 class="card-title fs-4 fw-bold">{{ title }} <span class="badge badge-light-{{ color }} ms-2">{{ column|length }}</span></h2>
             </div>
-            <div class="card-body pt-0 triage-column">
+            <div class="card-body pt-0 triage-column" data-triage-column="{{ status }}">
               {% for row in column %}
                 {% with visit=row.visit %}
-                  <div class="triage-card border border-dashed rounded p-4 mb-4 {% if visit.priority == 'emergency' %}border-danger bg-light-danger{% elif visit.priority == 'urgent' %}border-warning{% else %}border-gray-300{% endif %}">
+                  <div class="triage-card {% if row.actions %}triage-draggable {% endif %}border border-dashed rounded p-4 mb-4 {% if visit.priority == 'emergency' %}border-danger bg-light-danger{% elif visit.priority == 'urgent' %}border-warning{% else %}border-gray-300{% endif %}"{% if row.actions %} draggable="true" title="Drag to another column to change its status"{% endif %} data-triage-card>
                     <div class="d-flex align-items-center mb-2">
                       <span class="token-badge me-3">{{ visit.token|default:"—" }}</span>
                       <div class="flex-grow-1 min-w-0">{% include "appointments/partials/pet_cell.html" %}</div>

@@ -5,7 +5,7 @@
       <span class="card-label fw-bold text-gray-900 fs-3">Low stock</span>
       <span class="text-gray-500 mt-1 fw-semibold fs-6">{{ panel.total }} item{{ panel.total|pluralize }} at or below the warning level</span>
     </h2>
-    <div class="card-toolbar"><a href="{% url 'dashboard:list' 'shop' 'product' %}?track_stock=1" class="btn btn-sm btn-light-primary">All products</a></div>
+    <div class="card-toolbar"><a href="{% url 'dashboard:list' 'shop' 'product' %}?stock_level=low" class="btn btn-sm btn-light-primary">Purchase list</a></div>
   </div>
   <div class="card-body pt-2">
     <div class="d-flex flex-wrap gap-3">

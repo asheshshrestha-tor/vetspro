@@ -230,6 +230,23 @@ class BranchStockPageTests(BranchTestCase):
         self.assertEqual(self.kibble.stock_at(self.north), Decimal("7"))
         self.assertEqual(BranchStock.objects.get(product=self.kibble, branch=self.main).quantity, Decimal("10"))
 
+    def test_low_stock_filter_follows_the_branch(self):
+        treats = Product.objects.create(category=self.food, name="Treats", unit="pack", price=Decimal("200"))
+        change_stock(treats, 50, StockMovement.OPENING, branch=self.north)
+        change_stock(self.kibble, 1, StockMovement.OPENING, branch=self.north)
+        change_stock(self.kibble, -1, StockMovement.SALE, branch=self.north)
+        self.client.force_login(self.admin)
+        url = reverse("dashboard:list", args=["shop", "product"])
+
+        self.use_branch(self.north)
+        low = self.client.get(url, {"stock_level": "low"})
+        self.assertContains(low, "Kibble")
+        self.assertNotContains(low, "Treats")
+        self.assertContains(self.client.get(url, {"stock_level": "out"}), "Kibble")
+
+        self.use_branch(self.main)
+        self.assertNotContains(self.client.get(url, {"stock_level": "low"}), "Kibble")
+
 
 class WebsiteTests(TestCase):
     def test_branches_page_only_with_more_than_one_branch(self):

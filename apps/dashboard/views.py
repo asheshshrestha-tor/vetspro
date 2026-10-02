@@ -158,6 +158,16 @@ class ModuleListView(ModuleMixin, TemplateView):
     def get_filters(self):
         filters = []
         for name in self.module.list_filter:
+            # A module method with `filter_choices` filters the list itself, e.g. by stock level.
+            method = getattr(self.module, name, None)
+            if callable(method) and hasattr(method, "filter_choices"):
+                choices = list(method.filter_choices)
+                selected = self.request.GET.get(name, "")
+                if selected not in dict(choices):
+                    selected = ""
+                filters.append({"name": name, "label": column_label(self.module, name), "choices": choices,
+                                "selected": selected, "method": method})
+                continue
             field = resolve_field(self.module.model, name)
             if isinstance(field, models.BooleanField):
                 choices = [("1", "Yes"), ("0", "No")]
@@ -212,6 +222,9 @@ class ModuleListView(ModuleMixin, TemplateView):
 
         for item in filters:
             if not item["selected"]:
+                continue
+            if "method" in item:
+                queryset = item["method"](self.request, queryset, item["selected"])
                 continue
             field = resolve_field(module.model, item["name"])
             value = item["selected"] == "1" if isinstance(field, models.BooleanField) else item["selected"]

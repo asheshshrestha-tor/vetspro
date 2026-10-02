@@ -80,6 +80,16 @@ class StockColumns:
 
     stock.short_description = "In stock"
 
+    def stock_level(self, request, queryset, value):
+        """Items to buy: at or below the warning level (or out) at the branches being worked in, lowest first."""
+        rows = BranchStock.objects.low(scope_ids(request))
+        if value == "out":
+            rows = rows.filter(quantity__lte=0)
+        return queryset.filter(pk__in=rows.values("product_id")).order_by("branch_stock", "name")
+
+    stock_level.short_description = "Stock"
+    stock_level.filter_choices = [("low", "Low · need to purchase"), ("out", "Out of stock")]
+
     def row_actions(self, obj, request):
         if not obj.track_stock:
             return []
@@ -103,7 +113,7 @@ class ProductModule(StockColumns, Module):
 
     list_display = ["image", "name", "category", "selling_price", "stock", "show_online", "is_active"]
     search_fields = ["name", "sku", "brand", "description"]
-    list_filter = ["category", "track_stock", "is_package", "show_online", "is_active"]
+    list_filter = ["stock_level", "category", "track_stock", "is_package", "show_online", "is_active"]
     toggle_fields = ["show_online", "is_active"]
     form_class = ProductForm
     fields = PRODUCT_FIELDS
@@ -374,7 +384,7 @@ class TreatmentItemModule(StockColumns, Module):
 
     list_display = ["name", "kind", "charge", "usual_dosing", "stock", "is_active"]
     search_fields = ["name", "brand", "description"]
-    list_filter = ["treatment_kind", "is_active"]
+    list_filter = ["stock_level", "treatment_kind", "is_active"]
     toggle_fields = ["is_active"]
     form_class = TreatmentItemForm
     fields = TREATMENT_FIELDS

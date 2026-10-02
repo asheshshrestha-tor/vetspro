@@ -265,7 +265,11 @@
 @media (max-width: 767px) { .treatment-dosing { grid-template-columns: repeat(2, 1fr); } }
 
 /* Triage board and bookings week */
-.triage-column { max-height: 70vh; overflow-y: auto; }
+.triage-column { max-height: 70vh; min-height: 120px; overflow-y: auto; border-radius: .475rem; transition: background-color .15s, outline-color .15s; }
+.triage-draggable { cursor: grab; }
+.triage-card.is-dragging { opacity: .5; }
+.triage-column.is-drop-ok { background: var(--bs-primary-light); outline: 2px dashed var(--bs-primary); outline-offset: -2px; }
+.triage-column.is-drop-blocked { cursor: not-allowed; }
 .booking-day { min-height: 140px; }
 .booking-day.is-today { outline: 2px solid var(--bs-primary); outline-offset: -2px; }
 
