@@ -50,13 +50,15 @@ class Badge:
 class Action:
     """A button on a list row. POST actions are sent as a form so they carry the CSRF token."""
 
-    def __init__(self, label, url, icon="", color="light-primary", post=False, confirm=""):
+    def __init__(self, label, url, icon="", color="light-primary", post=False, confirm="", preview=False, title=""):
         self.label = label
         self.url = url
         self.icon = icon
         self.color = color
         self.post = post
         self.confirm = confirm
+        self.preview = preview  # open in the preview pop-up instead of a new page
+        self.title = title
 
 
 class Module:

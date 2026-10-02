@@ -24,14 +24,20 @@ from apps.branches.context import allowed_ids, current_branch, is_all_mode, requ
 from .records import build_grids, field_list, grids_have_input, save_grids
 
 
-def queue_url(day=None, board=False, doctor=None):
-    """The queue for a day, as a list or the triage board. A doctor shows only the visits they attend."""
+QUEUE_VIEWS = ("list", "board")
+
+
+def queue_url(day=None, view="", doctor=None):
+    """The queue for a day. Pass view only to switch layouts: the choice is remembered (see QueueView).
+
+    A doctor shows only the visits they attend.
+    """
     url = reverse("dashboard:appointment_queue")
     params = []
     if day and day != timezone.localdate():
         params.append(f"date={day.isoformat()}")
-    if board:
-        params.append("view=board")
+    if view:
+        params.append(f"view={view}")
     if doctor:
         params.append(f"doctor={doctor}")
     return url + ("?" + "&".join(params) if params else "")
@@ -132,24 +138,29 @@ class QueueView(AppointmentPage, TemplateView):
                 overdue.append({"visit": visit, "actions": status_actions(visit, user, in_queue=True)})
 
         counts = dict(visits.values_list("status").annotate(total=Count("id")))
-        board = self.request.GET.get("view") == "board"
+        # List or triage board: the last one picked stays until the user switches again.
+        session = self.request.session
+        view = self.request.GET.get("view")
+        if view in QUEUE_VIEWS and session.get("queue_view") != view:
+            session["queue_view"] = view
+        board = session.get("queue_view") == "board"
 
         # Who is working, with a patient or away; picking one shows only their patients.
         doctors = doctors_on(day, branch_ids)
         for row in doctors:
             row["selected"] = row["staff"].pk == doctor
-            row["url"] = queue_url(day, board, doctor=None if row["selected"] else row["staff"].pk)
+            row["url"] = queue_url(day, doctor=None if row["selected"] else row["staff"].pk)
         context.update(
             day=day,
             is_today=day == today,
-            previous_day=queue_url(day - datetime.timedelta(days=1), board, doctor),
-            next_day=queue_url(day + datetime.timedelta(days=1), board, doctor),
-            today_url=queue_url(board=board, doctor=doctor),
-            list_url=queue_url(day, doctor=doctor),
-            board_url=queue_url(day, board=True, doctor=doctor),
+            previous_day=queue_url(day - datetime.timedelta(days=1), doctor=doctor),
+            next_day=queue_url(day + datetime.timedelta(days=1), doctor=doctor),
+            today_url=queue_url(doctor=doctor),
+            list_url=queue_url(day, view="list", doctor=doctor),
+            board_url=queue_url(day, view="board", doctor=doctor),
             doctors=doctors,
             doctor=next((row for row in doctors if row["selected"]), None),
-            all_doctors_url=queue_url(day, board),
+            all_doctors_url=queue_url(day),
             # With the vet first; then waiting pets by triage (emergency first) and token.
             in_queue_sorted=sorted(
                 rows[Appointment.IN_CONSULTATION] + rows[Appointment.WAITING],

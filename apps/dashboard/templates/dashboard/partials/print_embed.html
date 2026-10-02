@@ -1,0 +1,6 @@
+{# Included in the <head> of printable pages. Inside the dashboard's preview pop-up the page's own toolbar is hidden: the pop-up has its own Print button. #}
+<script>if (window.self !== window.top) document.documentElement.classList.add("embedded");</script>
+<style>
+  .embedded .toolbar { display: none; }
+  .embedded body { background: #fff; }
+</style>

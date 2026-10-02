@@ -60,7 +60,8 @@ class InvoiceModule(Module):
     def row_actions(self, obj, request):
         if obj.is_draft:
             return []
-        return [Action("", reverse("dashboard:invoice_print", args=[obj.pk]), icon="ki-printer", color="light")]
+        return [Action("", reverse("dashboard:invoice_print", args=[obj.pk]), icon="ki-printer", color="light",
+                       preview=True, title=obj.display_number)]
 
     def number_or_draft(self, obj):
         return obj.display_number

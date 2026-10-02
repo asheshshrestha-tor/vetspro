@@ -87,7 +87,7 @@
                           <button type="submit" class="btn btn-sm btn-{{ action.color }} me-1">{% if action.icon %}<i class="ki-outline {{ action.icon }} fs-4"></i>{% endif %}{{ action.label }}</button>
                         </form>
                       {% else %}
-                        <a href="{{ action.url }}" class="btn btn-sm btn-{{ action.color }} me-1">{% if action.icon %}<i class="ki-outline {{ action.icon }} fs-4"></i>{% endif %}{{ action.label }}</a>
+                        <a href="{{ action.url }}" class="btn btn-sm btn-{{ action.color }} me-1"{% if action.title %} title="{{ action.title }}" aria-label="{{ action.title }}"{% endif %}{% if action.preview %} data-preview data-preview-title="{{ action.title|default:row.object }}"{% endif %}>{% if action.icon %}<i class="ki-outline {{ action.icon }} fs-4"></i>{% endif %}{{ action.label }}</a>
                       {% endif %}
                     {% endfor %}
                     <a href="{{ row.url }}" class="btn btn-icon btn-bg-light btn-active-color-primary btn-sm me-1" title="{% if can_change %}Edit{% else %}View{% endif %}" aria-label="{% if can_change %}Edit{% else %}View{% endif %} {{ row.object }}">

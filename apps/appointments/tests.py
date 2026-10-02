@@ -334,6 +334,15 @@ class PageTests(ClinicTestCase):
                 with self.subTest(user=user.username, url=url):
                     self.assertEqual(self.client.get(url).status_code, 200)
 
+    def test_queue_remembers_list_or_board(self):
+        self.login(self.reception)
+        queue = reverse("dashboard:appointment_queue")
+        self.assertFalse(self.client.get(queue).context["board"])
+        self.assertTrue(self.client.get(queue + "?view=board").context["board"])
+        self.assertTrue(self.client.get(queue).context["board"])
+        self.assertFalse(self.client.get(queue + "?view=list").context["board"])
+        self.assertFalse(self.client.get(queue).context["board"])
+
     def test_print_summary(self):
         visit = self.visit(diagnosis="Otitis externa")
         self.login(self.vet)

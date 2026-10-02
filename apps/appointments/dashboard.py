@@ -85,7 +85,8 @@ class AppointmentModule(Module):
             if item["action"] in ("check_in", "start")
         ]
         if perms.can_view_clinical(request.user) and obj.status != Appointment.CANCELLED:
-            actions.append(Action("", reverse("dashboard:appointment_print", args=[obj.pk]), icon="ki-printer", color="light"))
+            actions.append(Action("", reverse("dashboard:appointment_print", args=[obj.pk]), icon="ki-printer", color="light",
+                                  preview=True, title=f"Visit summary · {obj.number}"))
         return actions
 
     def status_badge(self, obj):

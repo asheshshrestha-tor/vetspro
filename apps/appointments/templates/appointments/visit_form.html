@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>{% if visit %}{{ visit.number }} · {{ pet.name }}{% else %}Registration form{% endif %} | {{ site.short_name }}</title>
+  {% include "dashboard/partials/print_embed.html" %}
   <style>
     :root { --navy: #16456b; --orange: #b9591a; --ink: #111; --muted: #555; --line: #222; --soft: #999; }
     * { box-sizing: border-box; }

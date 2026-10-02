@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block actions %}
-  <a href="{% url 'dashboard:appointment_blank_form' %}" target="_blank" rel="noopener" class="btn btn-sm fw-bold btn-light"><i class="ki-outline ki-printer fs-3"></i> Blank form</a>
+  <a href="{% url 'dashboard:appointment_blank_form' %}" data-preview data-preview-title="Blank visit form" class="btn btn-sm fw-bold btn-light"><i class="ki-outline ki-printer fs-3"></i> Blank form</a>
   <a href="{% url 'dashboard:appointment_queue' %}" class="btn btn-sm fw-bold btn-secondary"><i class="ki-outline ki-arrow-left fs-3"></i> Back to queue</a>
 {% endblock %}
 

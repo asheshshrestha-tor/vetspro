@@ -33,7 +33,7 @@
         <div class="d-flex align-items-center border border-dashed border-gray-300 rounded p-3 mb-3 gap-3">
           <i class="ki-outline {{ document.icon }} fs-2x text-primary"></i>
           <div class="flex-grow-1 min-w-0">
-            <a href="{{ document.get_absolute_url }}" target="_blank" rel="noopener" class="fw-bold text-gray-900 text-hover-primary text-break">{{ document }}</a>
+            <a href="{{ document.get_absolute_url }}"{% if document.preview_kind %} data-preview="{{ document.preview_kind }}"{% else %} download{% endif %} class="fw-bold text-gray-900 text-hover-primary text-break">{{ document }}</a>
             <div class="text-muted fs-7">
               {{ document.get_kind_display }} · {{ document.uploaded_at|date:"j M Y" }}{% if document.uploaded_by %} · {{ document.uploaded_by|staff_name }}{% endif %}
               {% if document.appointment %} · <a href="{{ document.appointment.get_absolute_url }}">{{ document.appointment.number }}</a>{% endif %}

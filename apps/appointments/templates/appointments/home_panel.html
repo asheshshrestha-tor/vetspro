@@ -12,7 +12,7 @@
         <div class="fs-2hx fw-bold text-gray-900 lh-1 mb-1">{{ panel.total }}</div>
         <div class="fw-semibold text-gray-600 mb-6">visit{{ panel.total|pluralize }} registered</div>
         {% if panel.emergencies %}
-          <a href="{% url 'dashboard:appointment_queue' %}?view=board" class="d-flex align-items-center bg-light-danger rounded p-3 mb-5 text-danger fw-bold">
+          <a href="{% url 'dashboard:appointment_queue' %}" class="d-flex align-items-center bg-light-danger rounded p-3 mb-5 text-danger fw-bold">
             <i class="ki-outline ki-information-5 fs-2 text-danger me-2"></i>{{ panel.emergencies }} emergency / urgent case{{ panel.emergencies|pluralize }} in the queue
           </a>
         {% endif %}

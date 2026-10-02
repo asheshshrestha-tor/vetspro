@@ -231,6 +231,13 @@ class PetDocument(models.Model):
         return self.extension in {"jpg", "jpeg", "png", "webp", "gif", "bmp"}
 
     @property
+    def preview_kind(self):
+        """How the dashboard pop-up shows the file: "image", "pdf", or "" when it can only be downloaded."""
+        if self.is_image:
+            return "image"
+        return "pdf" if self.extension == "pdf" else ""
+
+    @property
     def icon(self):
         return self.KIND_ICONS.get(self.kind, "ki-file")
 
